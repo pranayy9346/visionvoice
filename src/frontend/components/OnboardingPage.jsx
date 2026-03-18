@@ -4,7 +4,7 @@ import OnboardingHeader from './OnboardingHeader'
 import UseCasesSection from './UseCasesSection'
 import VideoModal from './VideoModal'
 
-const HERO_VIDEO_SRC = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
+const HERO_VIDEO_SRC = 'https://go.screenpal.com/watch/cOeFqcnZRyk4'
 const TECH_VIDEO_SRC = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm'
 
 const highlights = ['Activate Instantly', 'Capture Surroundings', 'Receive Voice Guidance']
@@ -94,7 +94,7 @@ export default function OnboardingPage() {
       <VideoModal
         isOpen={isVideoOpen}
         onClose={() => setIsVideoOpen(false)}
-        videoSrc="your-video.mp4"
+        videoSrc={TECH_VIDEO_SRC}
       />
     </main>
   )

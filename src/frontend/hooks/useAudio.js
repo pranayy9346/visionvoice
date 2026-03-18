@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const MURF_API_URL = "https://api.murf.ai/v1/speech/generate";
-const MURF_API_KEY = import.meta.env.VITE_MURF_API_KEY;
-const MURF_VOICE_ID = import.meta.env.VITE_MURF_VOICE_ID || "en-US-natalie";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export default function useAudio() {
   const audioRef = useRef(null);
@@ -55,11 +54,6 @@ export default function useAudio() {
           ? options.playbackRate
           : 1;
 
-      if (!MURF_API_KEY) {
-        setError("VITE_MURF_API_KEY is missing in frontend environment.");
-        return "";
-      }
-
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
 
@@ -69,16 +63,14 @@ export default function useAudio() {
       try {
         stopAudio();
 
-        const response = await fetch(MURF_API_URL, {
+        const response = await fetch(`${API_BASE_URL}/api/speech`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            "api-key": MURF_API_KEY,
           },
           body: JSON.stringify({
             text: text.trim(),
-            voiceId: MURF_VOICE_ID,
           }),
         });
 
@@ -117,6 +109,8 @@ export default function useAudio() {
           setError(
             "Audio autoplay was blocked. Use Replay Audio to play manually.",
           );
+        } else if (playbackError instanceof TypeError) {
+          setError("Unable to reach backend speech API.");
         } else {
           setError(
             playbackError?.message || "Unable to generate or play audio.",

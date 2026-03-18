@@ -130,6 +130,24 @@ export function createAssistantController(assistantService) {
     }
   };
 
+  const generateSpeech = async (request, response) => {
+    try {
+      const text = request.body?.text;
+      if (!text || typeof text !== "string" || !text.trim()) {
+        return response
+          .status(400)
+          .json({ error: "Request body must include text string." });
+      }
+
+      const audioUrl = await assistantService.generateSpeech(text.trim());
+      return response.json({ audioUrl });
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ error: error.message || "Failed to generate speech." });
+    }
+  };
+
   return {
     analyze,
     decision,
@@ -139,6 +157,7 @@ export function createAssistantController(assistantService) {
     getPersonalObjects,
     createPersonalObject,
     deletePersonalObject,
+    generateSpeech,
     shouldCapture: decision,
   };
 }

@@ -15,6 +15,7 @@ export function createAssistantRoutes(controller) {
   router.get("/objects", controller.getPersonalObjects);
   router.post("/add-object", controller.createPersonalObject);
   router.delete("/objects/:id", controller.deletePersonalObject);
+  router.post("/speech", controller.generateSpeech);
 
   return router;
 }

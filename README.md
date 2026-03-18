@@ -19,7 +19,7 @@ server/
 
 ## Frontend setup
 
-1. Copy `.env.example` to `.env` and fill in `VITE_MURF_API_KEY`.
+1. Copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
 2. Install dependencies in project root:
 
 ```bash

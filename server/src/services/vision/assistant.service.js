@@ -13,6 +13,7 @@ import {
   listPersonalObjects,
   savePersonalObject,
 } from "../../modules/personalObject/personalObject.service.js";
+import { generateSpeechAudioUrl } from "../audio/murf.service.js";
 import {
   buildConversationText,
   findLastScene,
@@ -110,6 +111,10 @@ export function createAssistantService({ maxImageBytes }) {
     return deletePersonalObjectById(userId, objectId);
   }
 
+  async function generateSpeech(text) {
+    return generateSpeechAudioUrl(text);
+  }
+
   return {
     analyze,
     decide,
@@ -119,5 +124,6 @@ export function createAssistantService({ maxImageBytes }) {
     getPersonalObjects,
     registerPersonalObject,
     deletePersonalObject,
+    generateSpeech,
   };
 }
