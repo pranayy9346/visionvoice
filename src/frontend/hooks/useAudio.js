@@ -44,11 +44,16 @@ export default function useAudio() {
   }, [audioUrl, stopAudio]);
 
   const playText = useCallback(
-    async (text) => {
+    async (text, options = {}) => {
       if (!text || typeof text !== "string" || !text.trim()) {
         setError("Text input is required for audio playback.");
         return "";
       }
+
+      const playbackRate =
+        typeof options.playbackRate === "number" && options.playbackRate > 0
+          ? options.playbackRate
+          : 1;
 
       if (!MURF_API_KEY) {
         setError("VITE_MURF_API_KEY is missing in frontend environment.");
@@ -101,6 +106,7 @@ export default function useAudio() {
         }
 
         audioRef.current.src = generatedAudioUrl;
+        audioRef.current.playbackRate = playbackRate;
         await audioRef.current.play();
         setIsPlaying(true);
 

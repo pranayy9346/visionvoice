@@ -1,0 +1,40 @@
+import mongoose from "mongoose";
+
+const preferencesSchema = new mongoose.Schema(
+  {
+    responseStyle: {
+      type: String,
+      enum: ["short", "detailed"],
+      default: "short",
+    },
+    languageLevel: {
+      type: String,
+      enum: ["simple", "moderate"],
+      default: "simple",
+    },
+    safetySensitivity: {
+      type: String,
+      enum: ["high", "normal"],
+      default: "high",
+    },
+    voiceSpeed: {
+      type: String,
+      enum: ["slow", "normal", "fast"],
+      default: "normal",
+    },
+  },
+  { _id: false },
+);
+
+const userProfileSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, unique: true, index: true },
+    preferences: { type: preferencesSchema, default: () => ({}) },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: false },
+);
+
+const UserProfile = mongoose.model("UserProfile", userProfileSchema);
+
+export default UserProfile;
