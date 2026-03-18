@@ -14,7 +14,7 @@ export default function OnboardingPage() {
   const [isVideoOpen, setIsVideoOpen] = useState(false)
 
   const handleGoToDemoPage = () => {
-    window.location.assign('/demo')
+    window.location.assign('/#/demo')
   }
 
   return (

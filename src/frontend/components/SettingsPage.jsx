@@ -90,7 +90,7 @@ export default function SettingsPage() {
   };
 
   const handleBack = () => {
-    window.location.assign("/demo");
+    window.location.assign("/#/demo");
   };
 
   const handleSaveObject = async ({ name, image }) => {
