@@ -64,7 +64,6 @@ export default function PipelineDemo() {
   const [lastCaptureTime, setLastCaptureTime] = useState(0);
   const mounted = useRef(true);
   const inactivityTimer = useRef(null);
-  const autoRestartTimer = useRef(null);
   const lastActivityTime = useRef(Date.now());
 
   const resetInactivityTimer = () => {
@@ -110,7 +109,6 @@ export default function PipelineDemo() {
     return () => {
       mounted.current = false;
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-      if (autoRestartTimer.current) clearTimeout(autoRestartTimer.current);
       stopAudio();
     };
   }, [startCamera, stopAudio]);
@@ -126,25 +124,6 @@ export default function PipelineDemo() {
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     };
   }, [state]);
-
-  useEffect(() => {
-    if (state === "speaking" && !isPlaying) {
-      autoRestartTimer.current = setTimeout(() => {
-        if (mounted.current && state === "speaking") {
-          setState("idle");
-          setTimeout(() => {
-            if (mounted.current) {
-              handleTapToSpeak();
-            }
-          }, 600);
-        }
-      }, 800);
-    }
-
-    return () => {
-      if (autoRestartTimer.current) clearTimeout(autoRestartTimer.current);
-    };
-  }, [isPlaying]);
 
   const handleTapToSpeak = async () => {
     if (!mounted.current) return;
@@ -243,7 +222,7 @@ export default function PipelineDemo() {
       });
 
       if (mounted.current) {
-        setState("speaking");
+        setState("idle");
       }
     } catch (error) {
       if (mounted.current) {
