@@ -11,11 +11,23 @@ export const PROFILE_OPTIONS = {
   languageLevel: ["simple", "moderate"],
   safetySensitivity: ["high", "normal"],
   voiceSpeed: ["slow", "normal", "fast"],
+  ttsVoiceMode: ["default", "custom"],
+};
+
+const LABELS = {
+  ttsVoiceMode: "Voice Option",
+  ttsCustomVoiceId: "Custom Voice ID (Clone)",
+  default: "Default Voice",
+  custom: "Custom Voice",
 };
 
 export function prettifyLabel(value) {
   if (!value) {
     return "";
+  }
+
+  if (LABELS[value]) {
+    return LABELS[value];
   }
 
   const normalized = value.replace(/([A-Z])/g, " $1");

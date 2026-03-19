@@ -1,10 +1,15 @@
 import { callGeminiEmbedding } from "./gemini.client.js";
 
-export async function embedText(text) {
-  const normalized = (text || "").trim();
-  if (!normalized) {
-    throw new Error("Embedding input text is empty.");
-  }
+const cache = new Map();
 
-  return callGeminiEmbedding({ text: normalized });
+export async function embedText(text) {
+  const clean = (text || "").trim();
+  if (!clean) throw new Error("Empty embedding input");
+
+  if (cache.has(clean)) return cache.get(clean);
+
+  const emb = await callGeminiEmbedding({ text: clean });
+  cache.set(clean, emb);
+
+  return emb;
 }

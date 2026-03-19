@@ -135,6 +135,8 @@ export default function usePipeline({
   captureImage,
   clearCapturedImage,
   voiceSpeed = "normal",
+  ttsVoiceMode = "default",
+  ttsCustomVoiceId = "",
   detectedName = "",
 }) {
   const {
@@ -272,9 +274,11 @@ export default function usePipeline({
 
       await playText(text, {
         playbackRate: VOICE_SPEED_MAP[voiceSpeed] || 1,
+        voiceId: ttsVoiceMode === "custom" ? ttsCustomVoiceId : "",
+        allowBrowserFallback: ttsVoiceMode !== "custom",
       });
     },
-    [playText, voiceSpeed],
+    [playText, ttsCustomVoiceId, ttsVoiceMode, voiceSpeed],
   );
 
   const processRequest = useCallback(

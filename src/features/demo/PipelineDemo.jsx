@@ -6,7 +6,11 @@ import PipelineResult from './components/PipelineResult'
 import VoiceAssistantControls from './components/VoiceAssistantControls'
 import useFaceRecognition from '../faceRecognition/hooks/useFaceRecognition'
 
-export default function PipelineDemo({ voiceSpeed = 'normal' }) {
+export default function PipelineDemo({
+  voiceSpeed = 'normal',
+  ttsVoiceMode = 'default',
+  ttsCustomVoiceId = '',
+}) {
   const {
     videoRef,
     error: cameraError,
@@ -48,6 +52,8 @@ export default function PipelineDemo({ voiceSpeed = 'normal' }) {
     captureImage,
     clearCapturedImage,
     voiceSpeed,
+    ttsVoiceMode,
+    ttsCustomVoiceId,
     detectedName,
   })
 

@@ -40,33 +40,51 @@ export async function analyzeFromImage({
   history,
   preferences,
   recognitionContext,
+  distanceInfo, // 🔥 NEW (LiDAR / near-far support)
 }) {
   const model =
     process.env.GEMINI_MODEL_VISION ||
     process.env.GEMINI_MODEL ||
     "gemini-2.5-flash";
+
   const prompt = buildImagePrompt({
     query,
     history,
     preferences,
     recognitionContext,
+    distanceInfo, // 🔥 pass to prompt
   });
 
-  const raw = await callGeminiGenerate({
-    model,
-    parts: [
-      { text: prompt },
-      buildInlineImagePart({ base64Image, base64Data, mimeType }),
-    ],
-  });
+  try {
+    const raw = await callGeminiGenerate({
+      model,
+      parts: [
+        { text: prompt },
+        buildInlineImagePart({ base64Image, base64Data, mimeType }),
+      ],
+    });
 
-  const parsed = parseJsonResponse(raw);
-  return {
-    response: normalizeDescription(parsed?.response || ""),
-    confidence: clamp(Number(parsed?.confidence) || 0.85, 0, 1),
-    reason: parsed?.reason?.trim() || "Used fresh visual analysis.",
-    scene: normalizeScene(parsed?.scene),
-  };
+    const parsed = parseJsonResponse(raw);
+
+    return {
+      response: normalizeDescription(parsed?.response || ""),
+      confidence: clamp(Number(parsed?.confidence) || 0.85, 0, 1),
+      reason:
+        parsed?.reason?.trim() || "Used fresh visual analysis.",
+      scene: normalizeScene(parsed?.scene),
+    };
+  } catch (error) {
+    console.error("Image analysis failed:", error);
+
+    // 🔥 fallback safe response
+    return {
+      response:
+        "I’m having trouble analyzing the scene right now. Please try again.",
+      confidence: 0.3,
+      reason: "Fallback due to image analysis failure.",
+      scene: normalizeScene(null),
+    };
+  }
 }
 
 export async function analyzeFromText({ query, history, preferences }) {
@@ -74,40 +92,77 @@ export async function analyzeFromText({ query, history, preferences }) {
     process.env.GEMINI_MODEL_TEXT ||
     process.env.GEMINI_MODEL ||
     "gemini-2.5-flash";
+
   const prompt = buildTextPrompt({ query, history, preferences });
 
-  const raw = await callGeminiGenerate({ model, parts: [{ text: prompt }] });
-  const parsed = parseJsonResponse(raw);
+  try {
+    const raw = await callGeminiGenerate({
+      model,
+      parts: [{ text: prompt }],
+    });
 
-  return {
-    response: normalizeDescription(parsed?.response || ""),
-    confidence: clamp(Number(parsed?.confidence) || 0.65, 0, 1),
-    reason: parsed?.reason?.trim() || "Used text reasoning without new image.",
-  };
+    const parsed = parseJsonResponse(raw);
+
+    return {
+      response: normalizeDescription(parsed?.response || ""),
+      confidence: clamp(Number(parsed?.confidence) || 0.65, 0, 1),
+      reason:
+        parsed?.reason?.trim() ||
+        "Used text reasoning without new image.",
+    };
+  } catch (error) {
+    console.error("Text analysis failed:", error);
+
+    return {
+      response:
+        "I couldn’t process your request properly. Please try again.",
+      confidence: 0.3,
+      reason: "Fallback due to text processing failure.",
+    };
+  }
 }
 
 export function analyzeFromCache({ scene, imageAge, preferences }) {
   const cache = normalizeScene(scene);
-  const ageMinutes = Math.max(0, Math.round((Number(imageAge) || 0) / 60));
+  const ageMinutes = Math.max(
+    0,
+    Math.round((Number(imageAge) || 0) / 60),
+  );
   const pref = normalizePreferences(preferences);
 
   const segments = [
-    `Based on your last known scene: ${cache.summary || "No scene summary available."}`,
+    `Based on your last known scene: ${
+      cache.summary || "No scene summary available."
+    }`,
   ];
-  if (cache.hazards.length)
+
+  if (cache.hazards.length) {
     segments.push(`Potential hazards: ${cache.hazards.join(", ")}.`);
-  if (cache.text.length)
+  }
+
+  if (cache.text.length) {
     segments.push(`Visible text: ${cache.text.join(", ")}.`);
-  if (cache.objects.length)
-    segments.push(`Key objects: ${cache.objects.slice(0, 5).join(", ")}.`);
+  }
+
+  if (cache.objects.length) {
+    segments.push(
+      `Key objects: ${cache.objects.slice(0, 5).join(", ")}.`,
+    );
+  }
+
   if (pref.safetySensitivity === "high" && cache.hazards.length) {
     segments.unshift(`Safety first: ${cache.hazards.join(", ")}.`);
   }
-  if (pref.responseStyle === "short") segments.splice(3);
+
+  if (pref.responseStyle === "short") {
+    segments.splice(3);
+  }
 
   return {
     response: normalizeDescription(segments.join(" ")),
-    confidence: Number(clamp(0.82 - ageMinutes * 0.03, 0.25, 0.82).toFixed(2)),
+    confidence: Number(
+      clamp(0.82 - ageMinutes * 0.03, 0.25, 0.82).toFixed(2),
+    ),
     reason: `Used memory cache from ${ageMinutes} minute(s) ago to reduce cost and latency.`,
   };
 }
@@ -122,22 +177,36 @@ export async function extractImageSignature({
     process.env.GEMINI_MODEL_VISION ||
     process.env.GEMINI_MODEL ||
     "gemini-2.5-flash";
+
   const prompt = buildImageSignaturePrompt(label);
 
-  const raw = await callGeminiGenerate({
-    model,
-    parts: [
-      { text: prompt },
-      buildInlineImagePart({ base64Image, base64Data, mimeType }),
-    ],
-  });
+  try {
+    const raw = await callGeminiGenerate({
+      model,
+      parts: [
+        { text: prompt },
+        buildInlineImagePart({ base64Image, base64Data, mimeType }),
+      ],
+    });
 
-  const parsed = parseJsonResponse(raw);
-  const signature = normalizeDescription(
-    parsed?.signature || parsed?.response || "",
-  );
-  if (!signature || signature === "No scene description was generated.") {
-    throw new Error("Unable to generate visual signature for personal object.");
+    const parsed = parseJsonResponse(raw);
+
+    const signature = normalizeDescription(
+      parsed?.signature || parsed?.response || "",
+    );
+
+    if (
+      !signature ||
+      signature === "No scene description was generated."
+    ) {
+      throw new Error(
+        "Unable to generate visual signature for personal object.",
+      );
+    }
+
+    return signature;
+  } catch (error) {
+    console.error("Signature extraction failed:", error);
+    throw new Error("Failed to extract image signature.");
   }
-  return signature;
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getUserId } from "../../../services/apiService";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://visionvoice-l9ki.onrender.com";
@@ -20,7 +21,7 @@ export default function useAudio() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchSpeechAudioUrl = useCallback(async (text) => {
+  const fetchSpeechAudioUrl = useCallback(async (text, voiceId) => {
     const runRequest = async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), SPEECH_TIMEOUT_MS);
@@ -32,7 +33,14 @@ export default function useAudio() {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({
+            text,
+            userId: getUserId(),
+            voiceId:
+              typeof voiceId === "string" && voiceId.trim()
+                ? voiceId.trim()
+                : undefined,
+          }),
           signal: controller.signal,
         });
 
@@ -188,6 +196,9 @@ export default function useAudio() {
         typeof options.playbackRate === "number" && options.playbackRate > 0
           ? options.playbackRate
           : 1;
+      const voiceId =
+        typeof options.voiceId === "string" ? options.voiceId : "";
+      const allowBrowserFallback = options.allowBrowserFallback !== false;
 
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
@@ -198,7 +209,10 @@ export default function useAudio() {
       try {
         stopAudio();
 
-        const generatedAudioUrl = await fetchSpeechAudioUrl(text.trim());
+        const generatedAudioUrl = await fetchSpeechAudioUrl(
+          text.trim(),
+          voiceId,
+        );
 
         if (!generatedAudioUrl) {
           throw new Error("Speech response did not include an audio URL.");
@@ -221,9 +235,14 @@ export default function useAudio() {
 
         return generatedAudioUrl;
       } catch (playbackError) {
-        const browserSpoken = await speakWithBrowser(text.trim(), playbackRate);
-        if (browserSpoken) {
-          return "browser-fallback";
+        if (allowBrowserFallback) {
+          const browserSpoken = await speakWithBrowser(
+            text.trim(),
+            playbackRate,
+          );
+          if (browserSpoken) {
+            return "browser-fallback";
+          }
         }
 
         setIsPlaying(false);
@@ -234,7 +253,11 @@ export default function useAudio() {
         } else if (playbackError instanceof TypeError) {
           setError("Unable to reach backend speech API.");
         } else {
-          setError("Speech service is unavailable right now.");
+          setError(
+            allowBrowserFallback
+              ? "Speech service is unavailable right now."
+              : "Selected Murf voice is unavailable right now.",
+          );
         }
 
         return "";

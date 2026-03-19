@@ -22,6 +22,16 @@ const preferencesSchema = new mongoose.Schema(
       enum: ["slow", "normal", "fast"],
       default: "normal",
     },
+    ttsVoiceMode: {
+      type: String,
+      enum: ["default", "custom"],
+      default: "default",
+    },
+    ttsCustomVoiceId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   { _id: false },
 );

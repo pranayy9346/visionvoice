@@ -4,7 +4,7 @@ function extractAudioUrl(payload) {
   return payload?.audioFile || payload?.audio_url || payload?.audioUrl || null;
 }
 
-export async function generateSpeechAudioUrl(text) {
+export async function generateSpeechAudioUrl(text, voiceId) {
   const apiKey = process.env.MURF_API_KEY;
 
   if (!apiKey) {
@@ -15,6 +15,11 @@ export async function generateSpeechAudioUrl(text) {
     throw new Error("Text input is required to generate Murf speech.");
   }
 
+  const resolvedVoiceId =
+    typeof voiceId === "string" && voiceId.trim()
+      ? voiceId.trim()
+      : process.env.MURF_VOICE_ID || "en-US-natalie";
+
   const response = await fetch(MURF_API_BASE, {
     method: "POST",
     headers: {
@@ -24,7 +29,7 @@ export async function generateSpeechAudioUrl(text) {
     },
     body: JSON.stringify({
       text: text.trim(),
-      voiceId: process.env.MURF_VOICE_ID || "en-US-natalie",
+      voiceId: resolvedVoiceId,
     }),
   });
 
@@ -43,8 +48,8 @@ export async function generateSpeechAudioUrl(text) {
   return audioUrl;
 }
 
-export async function generateSpeechAudioBuffer(text) {
-  const audioUrl = await generateSpeechAudioUrl(text);
+export async function generateSpeechAudioBuffer(text, voiceId) {
+  const audioUrl = await generateSpeechAudioUrl(text, voiceId);
   const audioResponse = await fetch(audioUrl);
 
   if (!audioResponse.ok) {

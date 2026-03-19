@@ -198,8 +198,12 @@ export function createAssistantController(assistantService) {
           .status(400)
           .json({ error: "Request body must include text string." });
       }
-
-      const audioUrl = await assistantService.generateSpeech(text.trim());
+      const userId = resolveUserId(request);
+      const voiceId = request.body?.voiceId;
+      const audioUrl = await assistantService.generateSpeech(text.trim(), {
+        userId,
+        voiceId,
+      });
       return response.json({ audioUrl });
     } catch (error) {
       const status =

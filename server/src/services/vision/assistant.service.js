@@ -33,6 +33,26 @@ import { analyzeWithPersistence } from "./assistant.analysis.service.js";
 import { resolveDecision } from "./assistant.decision.service.js";
 
 export function createAssistantService({ maxImageBytes }) {
+  function resolvePreferredVoiceId(profile, overrideVoiceId) {
+    const override =
+      typeof overrideVoiceId === "string" ? overrideVoiceId.trim() : "";
+    if (override) {
+      return override;
+    }
+
+    const mode = profile?.preferences?.ttsVoiceMode;
+    const customVoiceId =
+      typeof profile?.preferences?.ttsCustomVoiceId === "string"
+        ? profile.preferences.ttsCustomVoiceId.trim()
+        : "";
+
+    if (mode === "custom" && customVoiceId) {
+      return customVoiceId;
+    }
+
+    return process.env.MURF_VOICE_ID || "en-US-natalie";
+  }
+
   async function analyze({
     userId,
     query,
@@ -166,8 +186,10 @@ export function createAssistantService({ maxImageBytes }) {
     return deletePersonalObjectById(userId, objectId);
   }
 
-  async function generateSpeech(text) {
-    return generateSpeechAudioUrl(text);
+  async function generateSpeech(text, { userId, voiceId } = {}) {
+    const profile = userId ? await getOrCreateProfile(userId) : null;
+    const preferredVoiceId = resolvePreferredVoiceId(profile, voiceId);
+    return generateSpeechAudioUrl(text, preferredVoiceId);
   }
 
   async function getKnownPersons(userId) {

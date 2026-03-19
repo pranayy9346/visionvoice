@@ -16,6 +16,25 @@ export default function PreferencesCard({ preferences, message, isSaving, onChan
         />
       ))}
 
+      {preferences?.ttsVoiceMode === 'custom' && (
+        <div>
+          <label htmlFor="profile-ttsCustomVoiceId" className="text-sm text-slate-400">
+            Custom Voice ID (Clone)
+          </label>
+          <input
+            id="profile-ttsCustomVoiceId"
+            type="text"
+            value={preferences?.ttsCustomVoiceId || ''}
+            onChange={(event) => onChange('ttsCustomVoiceId', event.target.value)}
+            placeholder="Enter your Murf cloned voice ID"
+            className="mt-2 block w-full rounded-lg border border-slate-300/20 bg-slate-900/60 px-3 py-2 text-slate-100 transition focus:border-cyan-400 focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Use your Murf cloned voice ID so assistant replies in that voice.
+          </p>
+        </div>
+      )}
+
       {message && (
         <p className={message.includes('success') ? 'text-green-400' : 'text-red-400'}>
           {message}

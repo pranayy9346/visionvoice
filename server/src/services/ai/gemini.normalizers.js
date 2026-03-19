@@ -1,123 +1,40 @@
 import { DEFAULT_PREFERENCES } from "../../modules/user/userProfile.service.js";
 
-export function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+export const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+export function normalizeDescription(text) {
+  return (text || "").replace(/\s+/g, " ").trim() || "No description.";
 }
 
-export function normalizeDescription(value) {
-  const text = (value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "No scene description was generated.";
-
-  return text
-    .replace(
-      /^here(?:'s| is)\s+(?:a\s+)?(?:brief\s+)?description\s*[:\-]?\s*/i,
-      "",
-    )
-    .replace(/^description\s*[:\-]?\s*/i, "")
-    .replace(/^output\s*[:\-]?\s*/i, "")
-    .trim();
-}
-
-export function normalizePreferences(preferences) {
-  const candidate =
-    preferences && typeof preferences === "object" ? preferences : {};
+export function normalizePreferences(pref) {
+  const p = pref || {};
 
   return {
-    responseStyle:
-      candidate.responseStyle === "detailed"
-        ? "detailed"
-        : DEFAULT_PREFERENCES.responseStyle,
-    languageLevel:
-      candidate.languageLevel === "moderate"
-        ? "moderate"
-        : DEFAULT_PREFERENCES.languageLevel,
-    safetySensitivity:
-      candidate.safetySensitivity === "normal"
-        ? "normal"
-        : DEFAULT_PREFERENCES.safetySensitivity,
-    voiceSpeed: ["slow", "normal", "fast"].includes(candidate.voiceSpeed)
-      ? candidate.voiceSpeed
+    responseStyle: p.responseStyle === "detailed" ? "detailed" : DEFAULT_PREFERENCES.responseStyle,
+    languageLevel: p.languageLevel === "moderate" ? "moderate" : DEFAULT_PREFERENCES.languageLevel,
+    safetySensitivity: p.safetySensitivity === "high" ? "high" : DEFAULT_PREFERENCES.safetySensitivity,
+    voiceSpeed: ["slow", "normal", "fast"].includes(p.voiceSpeed)
+      ? p.voiceSpeed
       : DEFAULT_PREFERENCES.voiceSpeed,
   };
 }
 
 export function normalizeScene(scene) {
-  const normalized = scene && typeof scene === "object" ? scene : {};
   return {
-    objects: Array.isArray(normalized.objects)
-      ? normalized.objects.map(String).filter(Boolean).slice(0, 20)
-      : [],
-    positions: Array.isArray(normalized.positions)
-      ? normalized.positions.map(String).filter(Boolean).slice(0, 20)
-      : [],
-    hazards: Array.isArray(normalized.hazards)
-      ? normalized.hazards.map(String).filter(Boolean).slice(0, 15)
-      : [],
-    text: Array.isArray(normalized.text)
-      ? normalized.text.map(String).filter(Boolean).slice(0, 15)
-      : [],
-    summary:
-      typeof normalized.summary === "string" ? normalized.summary.trim() : "",
+    objects: scene?.objects || [],
+    positions: scene?.positions || [],
+    hazards: scene?.hazards || [],
+    text: scene?.text || [],
+    summary: scene?.summary || "",
   };
 }
 
-export function parseJsonResponse(rawText) {
-  if (!rawText || typeof rawText !== "string") {
-    throw new Error("Model did not return text content.");
-  }
-
-  const trimmed = rawText
-    .replace(/^```json\n?/i, "")
-    .replace(/^```\n?/i, "")
-    .replace(/\n?```$/, "")
-    .trim();
-
+export function parseJsonResponse(raw) {
   try {
-    return JSON.parse(trimmed);
+    return JSON.parse(raw);
   } catch {
-    // Gemini can prepend commentary; recover by extracting the first JSON object.
-    const start = trimmed.indexOf("{");
-    if (start < 0) {
-      throw new Error("Model response did not include JSON content.");
-    }
-
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-
-    for (let index = start; index < trimmed.length; index += 1) {
-      const char = trimmed[index];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-
-      if (char === '"') {
-        inString = !inString;
-        continue;
-      }
-
-      if (inString) {
-        continue;
-      }
-
-      if (char === "{") {
-        depth += 1;
-      } else if (char === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          const candidate = trimmed.slice(start, index + 1);
-          return JSON.parse(candidate);
-        }
-      }
-    }
-
-    throw new Error("Model JSON response was incomplete.");
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Invalid JSON");
+    return JSON.parse(match[0]);
   }
 }

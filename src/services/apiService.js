@@ -9,6 +9,8 @@ export const DEFAULT_PREFERENCES = {
   languageLevel: "simple",
   safetySensitivity: "high",
   voiceSpeed: "normal",
+  ttsVoiceMode: "default",
+  ttsCustomVoiceId: "",
 };
 
 const DEFAULT_TIMEOUT_MS = 45000;

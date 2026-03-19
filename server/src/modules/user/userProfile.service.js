@@ -5,6 +5,8 @@ export const DEFAULT_PREFERENCES = {
   languageLevel: "simple",
   safetySensitivity: "high",
   voiceSpeed: "normal",
+  ttsVoiceMode: "default",
+  ttsCustomVoiceId: "",
 };
 
 export const USER_ID_FALLBACK = "demo-user";
@@ -64,9 +66,18 @@ export async function getOrCreateProfile(userId) {
 
 export async function updateProfile(userId, incomingPreferences) {
   const normalizedUserId = normalizeText(userId) || USER_ID_FALLBACK;
-  const preferences = {
+  const merged = {
     ...DEFAULT_PREFERENCES,
     ...(incomingPreferences || {}),
+  };
+
+  const preferences = {
+    ...merged,
+    ttsVoiceMode: merged.ttsVoiceMode === "custom" ? "custom" : "default",
+    ttsCustomVoiceId:
+      merged.ttsVoiceMode === "custom"
+        ? normalizeText(merged.ttsCustomVoiceId)
+        : "",
   };
 
   return UserProfile.findOneAndUpdate(
