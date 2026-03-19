@@ -3,6 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://visionvoice-l9ki.onrender.com";
 
+const SPEECH_TIMEOUT_MS = 20000;
+
+async function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default function useAudio() {
   const audioRef = useRef(null);
   const utteranceRef = useRef(null);
@@ -13,6 +19,55 @@ export default function useAudio() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState("");
+
+  const fetchSpeechAudioUrl = useCallback(async (text) => {
+    const runRequest = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), SPEECH_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/speech`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ text }),
+          signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const err = new Error(payload?.error || "Speech request failed.");
+          err.status = response.status;
+          throw err;
+        }
+
+        return (
+          payload?.audioFile || payload?.audio_url || payload?.audioUrl || ""
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    try {
+      return await runRequest();
+    } catch (error) {
+      const isAbort = error?.name === "AbortError";
+      const isNetwork = error instanceof TypeError;
+      const isRetryableStatus =
+        typeof error?.status === "number" && error.status >= 500;
+
+      if (!isAbort && (isNetwork || isRetryableStatus)) {
+        await delay(500);
+        return runRequest();
+      }
+
+      throw error;
+    }
+  }, []);
 
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
@@ -42,17 +97,42 @@ export default function useAudio() {
 
         try {
           stopAudio();
+
+          // Trigger voice list population for browsers that lazy-load voices.
+          window.speechSynthesis.getVoices();
+
           const utterance = new window.SpeechSynthesisUtterance(text);
           utterance.rate = playbackRate;
+
+          const voices = window.speechSynthesis.getVoices();
+          const preferredVoice =
+            voices.find((voice) => /en/i.test(voice.lang || "")) || voices[0];
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+
           utteranceRef.current = utterance;
 
+          let hasStarted = false;
+          const startTimeout = window.setTimeout(() => {
+            if (!hasStarted) {
+              utteranceRef.current = null;
+              if (mountedRef.current) {
+                setIsPlaying(false);
+              }
+              resolve(false);
+            }
+          }, 2500);
+
           utterance.onstart = () => {
+            hasStarted = true;
             if (mountedRef.current) {
               setIsPlaying(true);
             }
           };
 
           utterance.onend = () => {
+            window.clearTimeout(startTimeout);
             utteranceRef.current = null;
             if (mountedRef.current) {
               setIsPlaying(false);
@@ -62,6 +142,7 @@ export default function useAudio() {
           };
 
           utterance.onerror = () => {
+            window.clearTimeout(startTimeout);
             utteranceRef.current = null;
             if (mountedRef.current) {
               setIsPlaying(false);
@@ -117,23 +198,7 @@ export default function useAudio() {
       try {
         stopAudio();
 
-        const response = await fetch(`${API_BASE_URL}/api/speech`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ text: text.trim() }),
-        });
-
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(payload?.error || "Speech request failed.");
-        }
-
-        const generatedAudioUrl =
-          payload?.audioFile || payload?.audio_url || payload?.audioUrl || "";
+        const generatedAudioUrl = await fetchSpeechAudioUrl(text.trim());
 
         if (!generatedAudioUrl) {
           throw new Error("Speech response did not include an audio URL.");
@@ -179,7 +244,7 @@ export default function useAudio() {
         }
       }
     },
-    [speakWithBrowser, stopAudio],
+    [fetchSpeechAudioUrl, speakWithBrowser, stopAudio],
   );
 
   useEffect(() => {

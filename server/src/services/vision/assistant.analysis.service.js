@@ -13,13 +13,34 @@ import {
 
 function createFallback(error, sceneFromMemory) {
   const isRate = (error?.message || "").includes("RATE_LIMITED");
+  const summary =
+    typeof sceneFromMemory?.summary === "string" &&
+    sceneFromMemory.summary.trim()
+      ? sceneFromMemory.summary.trim()
+      : "";
+  const hazards = Array.isArray(sceneFromMemory?.hazards)
+    ? sceneFromMemory.hazards.filter(
+        (item) => typeof item === "string" && item.trim(),
+      )
+    : [];
+  const objects = Array.isArray(sceneFromMemory?.objects)
+    ? sceneFromMemory.objects.filter(
+        (item) => typeof item === "string" && item.trim(),
+      )
+    : [];
+
+  const fallbackResponse = summary
+    ? `I could not reach live analysis, but from recent memory: ${summary}`
+    : hazards.length || objects.length
+      ? `I could not reach live analysis. Last known hazards: ${hazards.slice(0, 3).join(", ") || "none"}. Key objects: ${objects.slice(0, 4).join(", ") || "none"}.`
+      : "Live analysis is temporarily unavailable. Please try again in a moment.";
+
   return {
-    response:
-      "Live analysis is temporarily unavailable. Please try again in a moment.",
-    confidence: 0.25,
+    response: fallbackResponse,
+    confidence: summary || hazards.length || objects.length ? 0.45 : 0.25,
     reason: isRate
       ? "Live model rate limit reached."
-      : "Live model request failed.",
+      : "Live model request failed, used latest memory context.",
     source: "fallback",
     scene: sceneFromMemory,
     analysisSource: "fallback",

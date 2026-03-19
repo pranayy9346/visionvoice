@@ -89,7 +89,25 @@ function buildDistanceAwareResponse({
   detectedObject,
   distanceInfo,
   fallbackText,
+  transcriptText,
 }) {
+  const normalizedQuery =
+    typeof transcriptText === "string" ? transcriptText.toLowerCase() : "";
+  const isDistanceQuestion = [
+    "distance",
+    "how far",
+    "near",
+    "far",
+    "close",
+    "how close",
+    "where is",
+    "where's",
+  ].some((token) => normalizedQuery.includes(token));
+
+  if (!isDistanceQuestion && fallbackText && fallbackText.trim()) {
+    return fallbackText;
+  }
+
   if (!detectedObject) {
     return fallbackText;
   }
@@ -295,6 +313,7 @@ export default function usePipeline({
           detectedObject: detectedObjectName,
           distanceInfo,
           fallbackText: responseText,
+          transcriptText,
         });
 
         const usedImage =
