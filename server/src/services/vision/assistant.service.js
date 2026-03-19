@@ -25,9 +25,7 @@ import {
 import { generateSpeechAudioUrl } from "../audio/murf.service.js";
 import {
   buildConversationText,
-  findLastScene,
   normalizeImageInput,
-  resolveSceneAgeSeconds,
 } from "./assistant.helpers.js";
 import { analyzeWithPersistence } from "./assistant.analysis.service.js";
 import { detectIntent, resolveDecision } from "./assistant.decision.service.js";
@@ -56,14 +54,7 @@ export function createAssistantService({ maxImageBytes }) {
     return process.env.MURF_VOICE_ID || "en-US-natalie";
   }
 
-  async function analyze({
-    userId,
-    query,
-    image,
-    scene,
-    useCache,
-    recognizedPersonName,
-  }) {
+  async function analyze({ userId, query, image, recognizedPersonName }) {
     const normalizedQuery =
       query?.trim() || "Please describe what is around me.";
     const profile = await getOrCreateProfile(userId);
@@ -75,21 +66,21 @@ export function createAssistantService({ maxImageBytes }) {
     const imageInput = normalizeImageInput(image, maxImageBytes);
     const recent = await getRecentAnalysesByUser(userId, 10);
     const history = buildConversationText(recent);
-    const sceneFromMemory = scene || findLastScene(recent);
-    const imageAge = resolveSceneAgeSeconds(sceneFromMemory);
+
     const intent = detectIntent(normalizedQuery);
-    const resolvedUseCache = intent === "identity" ? false : useCache;
+
+    if (!imageInput.hasImage) {
+      throw new Error("Live analysis requires a fresh camera image.");
+    }
 
     const analysis = await analyzeWithPersistence({
       userId,
       normalizedQuery,
       imageInput,
       history,
-      sceneFromMemory,
-      useCache: resolvedUseCache,
-      imageAge,
       preferences,
       recognizedPersonName,
+      intent,
     });
 
     return {
@@ -106,16 +97,12 @@ export function createAssistantService({ maxImageBytes }) {
     lastScene,
   }) {
     const normalizedQuery = query.trim();
-    const recent = await getRecentAnalysesByUser(userId, 10);
-    const history =
-      conversationHistory?.trim() || buildConversationText(recent);
-    const scene = lastScene || findLastScene(recent);
-
+    // Keep endpoint compatibility, but decision is now rule-based live-only.
     return resolveDecision({
       query: normalizedQuery,
       imageAge,
-      conversationHistory: history,
-      scene,
+      conversationHistory,
+      scene: lastScene,
     });
   }
 

@@ -282,6 +282,22 @@ export default function usePipeline({
     }
   }, [captureImage]);
 
+  const captureFreshImage = useCallback(async () => {
+    const attempts = 3;
+    for (let index = 0; index < attempts; index += 1) {
+      const image = await captureImageAsync();
+      if (image) {
+        return image;
+      }
+
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 140);
+      });
+    }
+
+    return "";
+  }, [captureImageAsync]);
+
   const playResponse = useCallback(
     async (text) => {
       if (!text || !text.trim()) {
@@ -298,7 +314,7 @@ export default function usePipeline({
   );
 
   const processRequest = useCallback(
-    async ({ transcriptText, pendingCapture }) => {
+    async ({ transcriptText }) => {
       if (!transcriptText || !transcriptText.trim()) {
         return;
       }
@@ -308,21 +324,16 @@ export default function usePipeline({
 
       let backgroundImage = "";
       try {
-        backgroundImage = (await pendingCapture) || "";
+        backgroundImage = await captureFreshImage();
 
-        if (isIdentityQuery(transcriptText) && !backgroundImage) {
-          // Identity intent requires a fresh frame; try one immediate recapture.
-          backgroundImage = (await captureImageAsync()) || "";
+        if (!backgroundImage) {
+          throw new Error("Unable to capture a live image. Please try again.");
         }
 
-        const payload = await analyzeImage(
-          backgroundImage || null,
-          transcriptText,
-          {
-            scene: lastSceneRef.current || undefined,
-            recognizedPersonName: backgroundImage ? detectedName || "" : "",
-          },
-        );
+        const payload = await analyzeImage(backgroundImage, transcriptText, {
+          useCache: false,
+          recognizedPersonName: backgroundImage ? detectedName || "" : "",
+        });
 
         if (!mounted.current) {
           return;
@@ -345,16 +356,8 @@ export default function usePipeline({
           transcriptText,
         });
 
-        const usedImage =
-          payload?.usedImage === true || payload?.source === "image";
-        if (!usedImage) {
-          clearCapturedImage();
-          setCapturedImage("");
-        }
-
-        if (usedImage) {
-          setIsAnalyzingImage(true);
-        }
+        const usedImage = true;
+        setIsAnalyzingImage(true);
 
         setTranscript(transcriptText);
         setResponse(spokenResponse);
@@ -362,7 +365,7 @@ export default function usePipeline({
           confidence:
             typeof payload?.confidence === "number" ? payload.confidence : 0,
           reason: payload?.reason || "",
-          source: typeof payload?.source === "string" ? payload.source : "text",
+          source: "image",
           usedImage,
           detectedObject: detectedObjectName,
           distanceDisplay: distanceInfo.distanceDisplay,
@@ -372,7 +375,9 @@ export default function usePipeline({
           distanceIndicator: distanceInfo.distanceIndicator,
         });
 
-        lastSceneRef.current = payload?.scene || lastSceneRef.current;
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 200);
+        });
 
         await playResponse(spokenResponse);
       } catch (error) {
@@ -388,13 +393,7 @@ export default function usePipeline({
         }
       }
     },
-    [
-      captureImageAsync,
-      clearCapturedImage,
-      detectedName,
-      getDistanceInfo,
-      playResponse,
-    ],
+    [captureFreshImage, detectedName, getDistanceInfo, playResponse],
   );
 
   const startListening = useCallback(async () => {
@@ -409,8 +408,6 @@ export default function usePipeline({
       await ensureDepthSession();
     }
 
-    const pendingCapture = captureImageAsync();
-
     try {
       const transcriptText = await listenOnce();
 
@@ -422,7 +419,7 @@ export default function usePipeline({
         return;
       }
 
-      await processRequest({ transcriptText, pendingCapture });
+      await processRequest({ transcriptText });
     } catch (error) {
       if (!mounted.current) {
         return;
@@ -436,7 +433,6 @@ export default function usePipeline({
     }
   }, [
     ensureDepthSession,
-    captureImageAsync,
     isDepthSessionActive,
     isLidarAvailable,
     isListening,

@@ -1,5 +1,4 @@
-import { decideInteraction } from "../ai/gemini.service.js";
-import { canAnswerFromCache } from "./cacheDecision.service.js";
+// Live-only mode: always require a fresh image for every query.
 
 const IDENTITY_PATTERNS = [
   /\bwho\b.*\b(front|here|there|ahead|with me|in front)\b/i,
@@ -23,56 +22,16 @@ export function detectIntent(query = "") {
   return "general";
 }
 
-export async function resolveDecision({
-  query,
-  imageAge,
-  conversationHistory,
-  scene,
-}) {
+export async function resolveDecision({ query }) {
   const intent = detectIntent(query);
-  if (intent === "identity") {
-    return {
-      intent,
-      useCache: false,
-      needNewImage: true,
-      confidence: 1,
-      reason: "Identity intent requires fresh image analysis.",
-    };
-  }
-
-  const cacheReadiness = canAnswerFromCache(scene, imageAge);
-  if (cacheReadiness.forceNewImage) {
-    return {
-      intent,
-      useCache: false,
-      needNewImage: true,
-      confidence: cacheReadiness.confidence,
-      reason: cacheReadiness.reason,
-    };
-  }
-
-  try {
-    const decision = await decideInteraction({
-      query,
-      conversationHistory,
-      lastScene: scene,
-      imageAge,
-    });
-
-    return {
-      intent,
-      ...decision,
-    };
-  } catch (error) {
-    const isRate = (error?.message || "").includes("RATE_LIMITED");
-    return {
-      intent,
-      useCache: cacheReadiness.canUseCache,
-      needNewImage: !cacheReadiness.canUseCache,
-      confidence: cacheReadiness.confidence,
-      reason: isRate
-        ? "Decision model rate-limited; using cache freshness fallback."
-        : "Controller unavailable; using cache freshness fallback.",
-    };
-  }
+  return {
+    intent,
+    useCache: false,
+    needNewImage: true,
+    confidence: 1,
+    reason:
+      intent === "identity"
+        ? "Identity intent requires fresh image analysis."
+        : "Live-only mode requires fresh image analysis.",
+  };
 }

@@ -96,9 +96,7 @@ export default function PipelineResult({
             </div>
             <div className="mt-2 flex items-center justify-between text-xs">
               <span className={`font-medium ${confidenceMeta.textClass}`}>{confidenceMeta.label}</span>
-              <span className="text-slate-300">
-                {source === 'image' || usedImage ? 'Live analysis' : 'Using memory'}
-              </span>
+              <span className="text-slate-300">Live analysis</span>
             </div>
             {reason && <p className="mt-2 text-xs text-slate-400">{reason}</p>}
           </div>

@@ -1,8 +1,4 @@
-import {
-  analyzeFromCache,
-  analyzeFromImage,
-  analyzeFromText,
-} from "../ai/gemini.service.js";
+import { analyzeFromImage } from "../ai/gemini.service.js";
 import { createAnalysisRecord } from "../../modules/scene/scene.repository.js";
 import { findBestPersonalObjectMatch } from "../../modules/personalObject/personalObject.service.js";
 import {
@@ -11,38 +7,16 @@ import {
   combineRecognitionContext,
 } from "./assistant.helpers.js";
 
-function createFallback(error, sceneFromMemory) {
+function createFallback(error) {
   const isRate = (error?.message || "").includes("RATE_LIMITED");
-  const summary =
-    typeof sceneFromMemory?.summary === "string" &&
-    sceneFromMemory.summary.trim()
-      ? sceneFromMemory.summary.trim()
-      : "";
-  const hazards = Array.isArray(sceneFromMemory?.hazards)
-    ? sceneFromMemory.hazards.filter(
-        (item) => typeof item === "string" && item.trim(),
-      )
-    : [];
-  const objects = Array.isArray(sceneFromMemory?.objects)
-    ? sceneFromMemory.objects.filter(
-        (item) => typeof item === "string" && item.trim(),
-      )
-    : [];
-
-  const fallbackResponse = summary
-    ? `Using recent view: ${summary}`
-    : hazards.length || objects.length
-      ? `Using recent view. Last known hazards: ${hazards.slice(0, 3).join(", ") || "none"}. Key objects: ${objects.slice(0, 4).join(", ") || "none"}.`
-      : "Using recent view. Please ask again for a fresh check.";
-
   return {
-    response: fallbackResponse,
-    confidence: summary || hazards.length || objects.length ? 0.45 : 0.25,
+    response: "Live analysis is temporarily unavailable. Please try again.",
+    confidence: 0.25,
     reason: isRate
-      ? "Using recent view due to temporary model rate limit."
-      : "Using recent view due to temporary live-analysis issue.",
+      ? "Live model rate limit reached."
+      : "Live model request failed.",
     source: "fallback",
-    scene: sceneFromMemory,
+    scene: null,
     analysisSource: "fallback",
   };
 }
@@ -50,111 +24,50 @@ function createFallback(error, sceneFromMemory) {
 async function runAdaptiveAnalysis({
   normalizedQuery,
   history,
-  sceneFromMemory,
-  useCache,
-  imageAge,
   imageInput,
   preferences,
   userId,
   recognizedPersonName,
+  intent,
 }) {
-  if (imageInput.hasImage) {
-    let match = null;
-    try {
-      match = await findBestPersonalObjectMatch({
-        userId,
-        base64Data: imageInput.base64Data,
-        mimeType: imageInput.mimeType,
-      });
-    } catch (error) {
-      console.warn(
-        "Personal object matching unavailable; continuing without match:",
-        error?.message || error,
-      );
-    }
+  if (!imageInput.hasImage) {
+    throw new Error("Live analysis requires a fresh image.");
+  }
 
-    const recognitionContext = combineRecognitionContext(
-      buildPersonalObjectContext(match),
-      buildRecognizedPersonContext(recognizedPersonName),
+  let match = null;
+  try {
+    match = await findBestPersonalObjectMatch({
+      userId,
+      base64Data: imageInput.base64Data,
+      mimeType: imageInput.mimeType,
+    });
+  } catch (error) {
+    console.warn(
+      "Personal object matching unavailable; continuing without match:",
+      error?.message || error,
     );
-
-    try {
-      const result = await analyzeFromImage({
-        base64Data: imageInput.base64Data,
-        mimeType: imageInput.mimeType,
-        query: normalizedQuery,
-        history,
-        preferences,
-        recognitionContext,
-      });
-
-      return {
-        ...result,
-        source: "image",
-        scene: { ...result.scene, timestamp: new Date() },
-        personalObject: match,
-        analysisSource: "gemini",
-      };
-    } catch (error) {
-      const errorText = String(error?.message || "");
-      const shouldSkipSecondModelCall =
-        errorText.includes("RATE_LIMITED") ||
-        errorText.includes("API_KEY_INVALID") ||
-        errorText.includes("Gemini request failed");
-
-      if (shouldSkipSecondModelCall) {
-        throw error;
-      }
-
-      console.warn(
-        "Image analysis unavailable; falling back to text reasoning:",
-        error?.message || error,
-      );
-      const textFallback = await analyzeFromText({
-        query: normalizedQuery,
-        history,
-        preferences,
-      });
-
-      return {
-        ...textFallback,
-        source: "text",
-        scene: sceneFromMemory,
-        personalObject: match,
-        analysisSource: "gemini",
-        reason:
-          textFallback.reason ||
-          "Image analysis unavailable; used text reasoning instead.",
-      };
-    }
   }
 
-  if (useCache === true && sceneFromMemory) {
-    return {
-      ...analyzeFromCache({
-        query: normalizedQuery,
-        scene: sceneFromMemory,
-        imageAge,
-        preferences,
-      }),
-      source: "cache",
-      scene: sceneFromMemory,
-      personalObject: null,
-      analysisSource: "gemini",
-    };
-  }
+  const recognitionContext = combineRecognitionContext(
+    buildPersonalObjectContext(match),
+    buildRecognizedPersonContext(recognizedPersonName),
+  );
 
-  const result = await analyzeFromText({
+  const result = await analyzeFromImage({
+    base64Data: imageInput.base64Data,
+    mimeType: imageInput.mimeType,
     query: normalizedQuery,
     history,
     preferences,
+    recognitionContext,
+    distanceInfo: intent === "identity" ? "identity-query" : "",
   });
 
   return {
     ...result,
-    source: "text",
-    scene: sceneFromMemory,
-    personalObject: null,
+    source: "image",
+    scene: { ...result.scene, timestamp: new Date() },
+    personalObject: match,
     analysisSource: "gemini",
   };
 }
@@ -164,31 +77,27 @@ export async function analyzeWithPersistence({
   normalizedQuery,
   imageInput,
   history,
-  sceneFromMemory,
-  useCache,
-  imageAge,
   preferences,
   recognizedPersonName,
+  intent,
 }) {
   let output;
   try {
     output = await runAdaptiveAnalysis({
       normalizedQuery,
       history,
-      sceneFromMemory,
-      useCache,
-      imageAge,
       imageInput,
       preferences,
       userId,
       recognizedPersonName,
+      intent,
     });
   } catch (error) {
     console.error(
       "Adaptive analysis failed; using fallback response:",
       error?.message || error,
     );
-    output = createFallback(error, sceneFromMemory);
+    output = createFallback(error);
   }
 
   const safeResponse =
