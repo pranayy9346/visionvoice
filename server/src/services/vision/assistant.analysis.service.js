@@ -10,12 +10,11 @@ import { buildPersonalObjectContext } from "./assistant.helpers.js";
 function createFallback(error, sceneFromMemory) {
   const isRate = (error?.message || "").includes("RATE_LIMITED");
   return {
-    response: isRate
-      ? "API rate limit reached. Gemini quota exceeded. Please wait a moment and try again."
-      : "Live analysis is temporarily unavailable. Please try again in a moment.",
+    response:
+      "Live analysis is temporarily unavailable. Please try again in a moment.",
     confidence: 0.25,
     reason: isRate
-      ? "Rate-limited by AI provider."
+      ? "Live model rate limit reached."
       : "Live model request failed.",
     source: "fallback",
     scene: sceneFromMemory,
