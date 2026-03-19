@@ -64,4 +64,4 @@ Server runs on `http://localhost:5000`.
 ## API endpoints
 
 - `POST /analyze` with body `{ "image": "data:image/jpeg;base64,..." }`
-- `GET /history` returns the latest 5 analyses
+- `GET /history` returns the latest 5 analyses.
