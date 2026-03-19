@@ -235,6 +235,8 @@ export default function useAudio() {
 
         return generatedAudioUrl;
       } catch (playbackError) {
+        let effectiveAllowBrowserFallback = allowBrowserFallback;
+
         const canFallbackToDefaultMurf =
           !allowBrowserFallback &&
           typeof voiceId === "string" &&
@@ -263,11 +265,12 @@ export default function useAudio() {
               return defaultVoiceAudioUrl;
             }
           } catch {
-            // Continue to existing fallback/error handling when default Murf voice also fails.
+            // If custom and default Murf both fail, allow browser TTS as last resort.
+            effectiveAllowBrowserFallback = true;
           }
         }
 
-        if (allowBrowserFallback) {
+        if (effectiveAllowBrowserFallback) {
           const browserSpoken = await speakWithBrowser(
             text.trim(),
             playbackRate,
@@ -286,7 +289,7 @@ export default function useAudio() {
           setError("Unable to reach backend speech API.");
         } else {
           setError(
-            allowBrowserFallback
+            effectiveAllowBrowserFallback
               ? "Speech service is unavailable right now."
               : "Selected Murf voice is unavailable right now.",
           );

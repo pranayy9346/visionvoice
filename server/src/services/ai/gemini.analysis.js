@@ -40,7 +40,7 @@ export async function analyzeFromImage({
   history,
   preferences,
   recognitionContext,
-  distanceInfo, // 🔥 NEW (LiDAR / near-far support)
+  distanceInfo,
 }) {
   const model =
     process.env.GEMINI_MODEL_VISION ||
@@ -52,39 +52,25 @@ export async function analyzeFromImage({
     history,
     preferences,
     recognitionContext,
-    distanceInfo, // 🔥 pass to prompt
+    distanceInfo,
   });
 
-  try {
-    const raw = await callGeminiGenerate({
-      model,
-      parts: [
-        { text: prompt },
-        buildInlineImagePart({ base64Image, base64Data, mimeType }),
-      ],
-    });
+  const raw = await callGeminiGenerate({
+    model,
+    parts: [
+      { text: prompt },
+      buildInlineImagePart({ base64Image, base64Data, mimeType }),
+    ],
+  });
 
-    const parsed = parseJsonResponse(raw);
+  const parsed = parseJsonResponse(raw);
 
-    return {
-      response: normalizeDescription(parsed?.response || ""),
-      confidence: clamp(Number(parsed?.confidence) || 0.85, 0, 1),
-      reason:
-        parsed?.reason?.trim() || "Used fresh visual analysis.",
-      scene: normalizeScene(parsed?.scene),
-    };
-  } catch (error) {
-    console.error("Image analysis failed:", error);
-
-    // 🔥 fallback safe response
-    return {
-      response:
-        "I’m having trouble analyzing the scene right now. Please try again.",
-      confidence: 0.3,
-      reason: "Fallback due to image analysis failure.",
-      scene: normalizeScene(null),
-    };
-  }
+  return {
+    response: normalizeDescription(parsed?.response || ""),
+    confidence: clamp(Number(parsed?.confidence) || 0.85, 0, 1),
+    reason: parsed?.reason?.trim() || "Used fresh visual analysis.",
+    scene: normalizeScene(parsed?.scene),
+  };
 }
 
 export async function analyzeFromText({ query, history, preferences }) {
@@ -95,39 +81,23 @@ export async function analyzeFromText({ query, history, preferences }) {
 
   const prompt = buildTextPrompt({ query, history, preferences });
 
-  try {
-    const raw = await callGeminiGenerate({
-      model,
-      parts: [{ text: prompt }],
-    });
+  const raw = await callGeminiGenerate({
+    model,
+    parts: [{ text: prompt }],
+  });
 
-    const parsed = parseJsonResponse(raw);
+  const parsed = parseJsonResponse(raw);
 
-    return {
-      response: normalizeDescription(parsed?.response || ""),
-      confidence: clamp(Number(parsed?.confidence) || 0.65, 0, 1),
-      reason:
-        parsed?.reason?.trim() ||
-        "Used text reasoning without new image.",
-    };
-  } catch (error) {
-    console.error("Text analysis failed:", error);
-
-    return {
-      response:
-        "I couldn’t process your request properly. Please try again.",
-      confidence: 0.3,
-      reason: "Fallback due to text processing failure.",
-    };
-  }
+  return {
+    response: normalizeDescription(parsed?.response || ""),
+    confidence: clamp(Number(parsed?.confidence) || 0.65, 0, 1),
+    reason: parsed?.reason?.trim() || "Used text reasoning without new image.",
+  };
 }
 
 export function analyzeFromCache({ scene, imageAge, preferences }) {
   const cache = normalizeScene(scene);
-  const ageMinutes = Math.max(
-    0,
-    Math.round((Number(imageAge) || 0) / 60),
-  );
+  const ageMinutes = Math.max(0, Math.round((Number(imageAge) || 0) / 60));
   const pref = normalizePreferences(preferences);
 
   const segments = [
@@ -145,9 +115,7 @@ export function analyzeFromCache({ scene, imageAge, preferences }) {
   }
 
   if (cache.objects.length) {
-    segments.push(
-      `Key objects: ${cache.objects.slice(0, 5).join(", ")}.`,
-    );
+    segments.push(`Key objects: ${cache.objects.slice(0, 5).join(", ")}.`);
   }
 
   if (pref.safetySensitivity === "high" && cache.hazards.length) {
@@ -160,9 +128,7 @@ export function analyzeFromCache({ scene, imageAge, preferences }) {
 
   return {
     response: normalizeDescription(segments.join(" ")),
-    confidence: Number(
-      clamp(0.82 - ageMinutes * 0.03, 0.25, 0.82).toFixed(2),
-    ),
+    confidence: Number(clamp(0.82 - ageMinutes * 0.03, 0.25, 0.82).toFixed(2)),
     reason: `Used memory cache from ${ageMinutes} minute(s) ago to reduce cost and latency.`,
   };
 }
@@ -195,10 +161,7 @@ export async function extractImageSignature({
       parsed?.signature || parsed?.response || "",
     );
 
-    if (
-      !signature ||
-      signature === "No scene description was generated."
-    ) {
+    if (!signature || signature === "No scene description was generated.") {
       throw new Error(
         "Unable to generate visual signature for personal object.",
       );

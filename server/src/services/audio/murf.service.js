@@ -1,4 +1,5 @@
 const MURF_API_BASE = "https://api.murf.ai/v1/speech/generate";
+const DEFAULT_MURF_STYLE = "Conversational";
 
 function extractAudioUrl(payload) {
   return payload?.audioFile || payload?.audio_url || payload?.audioUrl || null;
@@ -20,22 +21,53 @@ export async function generateSpeechAudioUrl(text, voiceId) {
       ? voiceId.trim()
       : process.env.MURF_VOICE_ID || "en-US-natalie";
 
-  const response = await fetch(MURF_API_BASE, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "api-key": apiKey,
-    },
-    body: JSON.stringify({
+  const requestedStyle =
+    typeof process.env.MURF_STYLE === "string" && process.env.MURF_STYLE.trim()
+      ? process.env.MURF_STYLE.trim()
+      : DEFAULT_MURF_STYLE;
+
+  const buildPayload = (style) => {
+    const payload = {
       text: text.trim(),
       voiceId: resolvedVoiceId,
-    }),
-  });
+    };
+
+    if (style && typeof style === "string") {
+      payload.style = style;
+    }
+
+    return payload;
+  };
+
+  const runRequest = async (payload) => {
+    const response = await fetch(MURF_API_BASE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return response;
+  };
+
+  let response = await runRequest(buildPayload(requestedStyle));
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown Murf error");
-    throw new Error(`Murf request failed: ${errorText}`);
+    const firstErrorText = await response
+      .text()
+      .catch(() => "Unknown Murf error");
+
+    // Retry without style if conversational style is not accepted for this voice/account.
+    response = await runRequest(buildPayload(null));
+    if (!response.ok) {
+      const secondErrorText = await response
+        .text()
+        .catch(() => firstErrorText || "Unknown Murf error");
+      throw new Error(`Murf request failed: ${secondErrorText}`);
+    }
   }
 
   const payload = await response.json().catch(() => ({}));
