@@ -4,6 +4,7 @@ import {
   getUserProfile,
   updateUserProfile,
 } from "../../../services/apiService";
+import useAuth from "../../../hooks/useAuth";
 
 export const PROFILE_OPTIONS = {
   responseStyle: ["short", "detailed"],
@@ -22,6 +23,7 @@ export function prettifyLabel(value) {
 }
 
 export default function useProfilePreferences() {
+  const { setProfile } = useAuth();
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -61,13 +63,17 @@ export default function useProfilePreferences() {
     try {
       const updated = await updateUserProfile(preferences);
       setPreferences(updated.preferences);
+      setProfile((previous) => ({
+        ...previous,
+        preferences: updated.preferences,
+      }));
       setMessage("Settings saved successfully.");
     } catch (error) {
       setMessage(error?.message || "Failed to save settings.");
     } finally {
       setIsSaving(false);
     }
-  }, [preferences]);
+  }, [preferences, setProfile]);
 
   return {
     preferences,

@@ -12,12 +12,17 @@ export default function AppHeader({ showSettingsToggle = true, rightContent = nu
 
   return (
     <header className="navbar" aria-label="App header">
-      <div className="brand">
+      <button
+        type="button"
+        className="brand"
+        onClick={() => navigate(ROUTES.root)}
+        aria-label="Go to landing page"
+      >
         <span className="brand-logo" aria-hidden="true">
           V
         </span>
         <span className="brand-name">VisionVoice AI</span>
-      </div>
+      </button>
 
       <div className="header-actions">
         {rightContent}

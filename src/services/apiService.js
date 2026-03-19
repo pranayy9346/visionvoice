@@ -11,7 +11,11 @@ export const DEFAULT_PREFERENCES = {
   voiceSpeed: "normal",
 };
 
-const DEFAULT_TIMEOUT_MS = 20000;
+const DEFAULT_TIMEOUT_MS = 45000;
+
+async function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function createTimeoutSignal(timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -159,42 +163,59 @@ export async function analyzeImage(
     throw new Error("Image must be a valid base64 string or null.");
   }
 
-  const timeout = signal ? null : createTimeoutSignal(timeoutMs);
+  const body = { query: query.trim(), userId: getUserId() };
+  if (base64) {
+    body.image = base64;
+  }
+  if (typeof useCache === "boolean") {
+    body.useCache = useCache;
+  }
+  if (scene && typeof scene === "object") {
+    body.scene = scene;
+  }
+  if (typeof recognizedPersonName === "string" && recognizedPersonName.trim()) {
+    body.recognizedPersonName = recognizedPersonName.trim();
+  }
+
+  const runAnalyze = async () => {
+    const timeout = signal ? null : createTimeoutSignal(timeoutMs);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: signal || timeout.signal,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload?.error || "Failed to analyze image.";
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
+      }
+
+      return payload;
+    } finally {
+      timeout?.clear();
+    }
+  };
 
   try {
-    const body = { query: query.trim(), userId: getUserId() };
-    if (base64) {
-      body.image = base64;
-    }
-    if (typeof useCache === "boolean") {
-      body.useCache = useCache;
-    }
-    if (scene && typeof scene === "object") {
-      body.scene = scene;
-    }
-    if (
-      typeof recognizedPersonName === "string" &&
-      recognizedPersonName.trim()
-    ) {
-      body.recognizedPersonName = recognizedPersonName.trim();
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: signal || timeout.signal,
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || "Failed to analyze image.");
-    }
-
-    return payload;
+    return await runAnalyze();
   } catch (error) {
+    const isAbort = error?.name === "AbortError";
+    const isNetwork = error instanceof TypeError;
+    const isRetryableStatus =
+      typeof error?.status === "number" && error.status >= 500;
+
+    if (!isAbort && (isNetwork || isRetryableStatus)) {
+      await delay(600);
+      return runAnalyze();
+    }
+
     if (error?.name === "AbortError") {
       throw new Error("Analysis request timed out. Please try again.");
     }
@@ -202,8 +223,6 @@ export async function analyzeImage(
       throw new Error("Unable to reach backend API.");
     }
     throw new Error(error?.message || "Failed to analyze image.");
-  } finally {
-    timeout?.clear();
   }
 }
 
