@@ -142,9 +142,13 @@ export function createAssistantController(assistantService) {
       const audioUrl = await assistantService.generateSpeech(text.trim());
       return response.json({ audioUrl });
     } catch (error) {
+      const status =
+        typeof error?.statusCode === "number" && error.statusCode >= 400
+          ? error.statusCode
+          : 503;
       return response
-        .status(500)
-        .json({ error: error.message || "Failed to generate speech." });
+        .status(status)
+        .json({ error: "Speech service is temporarily unavailable." });
     }
   };
 

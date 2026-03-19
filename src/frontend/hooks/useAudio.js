@@ -5,6 +5,7 @@ const API_BASE_URL =
 
 export default function useAudio() {
   const audioRef = useRef(null);
+  const utteranceRef = useRef(null);
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -14,14 +15,67 @@ export default function useAudio() {
   const [error, setError] = useState("");
 
   const stopAudio = useCallback(() => {
-    if (!audioRef.current) {
-      return;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
 
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+    }
+
     setIsPlaying(false);
   }, []);
+
+  const speakWithBrowser = useCallback(
+    (text, playbackRate) =>
+      new Promise((resolve) => {
+        if (
+          typeof window === "undefined" ||
+          !window.speechSynthesis ||
+          typeof window.SpeechSynthesisUtterance !== "function"
+        ) {
+          resolve(false);
+          return;
+        }
+
+        try {
+          stopAudio();
+          const utterance = new window.SpeechSynthesisUtterance(text);
+          utterance.rate = playbackRate;
+          utteranceRef.current = utterance;
+
+          utterance.onstart = () => {
+            if (mountedRef.current) {
+              setIsPlaying(true);
+            }
+          };
+
+          utterance.onend = () => {
+            utteranceRef.current = null;
+            if (mountedRef.current) {
+              setIsPlaying(false);
+              setError("");
+            }
+            resolve(true);
+          };
+
+          utterance.onerror = () => {
+            utteranceRef.current = null;
+            if (mountedRef.current) {
+              setIsPlaying(false);
+            }
+            resolve(false);
+          };
+
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          resolve(false);
+        }
+      }),
+    [stopAudio],
+  );
 
   const replayAudio = useCallback(async () => {
     if (!audioRef.current || !audioUrl) {
@@ -104,6 +158,11 @@ export default function useAudio() {
 
         return generatedAudioUrl;
       } catch (playbackError) {
+        const browserSpoken = await speakWithBrowser(text.trim(), playbackRate);
+        if (browserSpoken) {
+          return "browser-fallback";
+        }
+
         setIsPlaying(false);
         if (playbackError?.name === "NotAllowedError") {
           setError(
@@ -112,10 +171,9 @@ export default function useAudio() {
         } else if (playbackError instanceof TypeError) {
           setError("Unable to reach backend speech API.");
         } else {
-          setError(
-            playbackError?.message || "Unable to generate or play audio.",
-          );
+          setError("Speech service is unavailable right now.");
         }
+
         return "";
       } finally {
         if (mountedRef.current && requestId === requestIdRef.current) {
@@ -123,7 +181,7 @@ export default function useAudio() {
         }
       }
     },
-    [stopAudio],
+    [speakWithBrowser, stopAudio],
   );
 
   useEffect(() => {
@@ -144,6 +202,9 @@ export default function useAudio() {
 
     return () => {
       mountedRef.current = false;
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
       audioElement.removeEventListener("ended", handleEnded);
       audioElement.removeEventListener("pause", handlePause);
       audioElement.removeEventListener("play", handlePlay);
