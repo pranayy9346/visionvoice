@@ -1,6 +1,13 @@
 const GEMINI_API_BASE =
   "https://generativelanguage.googleapis.com/v1beta/models";
 
+const GEMINI_RETRY_ATTEMPTS = 1;
+const GEMINI_RETRY_DELAY_MS = 900;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function getApiKey() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -21,14 +28,26 @@ async function readError(response) {
 
 export async function callGeminiGenerate({ model, parts }) {
   const endpoint = `${GEMINI_API_BASE}/${model}:generateContent?key=${getApiKey()}`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ role: "user", parts }] }),
-  });
+  let response = null;
 
-  if (!response.ok) {
-    await readError(response);
+  for (let attempt = 0; attempt <= GEMINI_RETRY_ATTEMPTS; attempt += 1) {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ role: "user", parts }] }),
+    });
+
+    if (response.ok) {
+      break;
+    }
+
+    const shouldRetry =
+      response.status === 429 && attempt < GEMINI_RETRY_ATTEMPTS;
+    if (!shouldRetry) {
+      await readError(response);
+    }
+
+    await delay(GEMINI_RETRY_DELAY_MS * (attempt + 1));
   }
 
   const data = await response.json();

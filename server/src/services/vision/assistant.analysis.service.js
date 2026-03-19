@@ -96,6 +96,16 @@ async function runAdaptiveAnalysis({
         analysisSource: "gemini",
       };
     } catch (error) {
+      const errorText = String(error?.message || "");
+      const shouldSkipSecondModelCall =
+        errorText.includes("RATE_LIMITED") ||
+        errorText.includes("API_KEY_INVALID") ||
+        errorText.includes("Gemini request failed");
+
+      if (shouldSkipSecondModelCall) {
+        throw error;
+      }
+
       console.warn(
         "Image analysis unavailable; falling back to text reasoning:",
         error?.message || error,
