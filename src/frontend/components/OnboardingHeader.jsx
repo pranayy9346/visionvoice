@@ -1,15 +1,13 @@
 export default function OnboardingHeader() {
-  const hashPath = window.location.hash.replace(/^#/, "") || "/";
-  const resolvedPath = hashPath !== "/" ? hashPath : window.location.pathname;
-  const isSettingsPage = resolvedPath === "/settings";
+  const isSettingsPage = window.location.pathname === "/settings";
 
   const handleOpenSettings = () => {
     if (isSettingsPage) {
-      window.location.assign("/#/demo");
+      window.location.assign("/demo");
       return;
     }
 
-    window.location.assign("/#/settings");
+    window.location.assign("/settings");
   };
 
   return (

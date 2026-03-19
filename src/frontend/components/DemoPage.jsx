@@ -3,7 +3,7 @@ import PipelineDemo from './PipelineDemo'
 
 export default function DemoPage() {
   const handleBackHome = () => {
-    window.location.assign('/#/')
+    window.location.assign('/')
   }
 
   return (

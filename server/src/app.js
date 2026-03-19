@@ -25,12 +25,19 @@ function createCorsOptions(frontendOrigin) {
       if (!origin) return callback(null, true);
 
       const explicit = allowedOrigins.has(origin);
+      const vercelDomain = /^https:\/\/([a-z0-9-]+)\.vercel\.app$/i.test(
+        origin,
+      );
       const isProdLocalhost =
         env.nodeEnv === "development" &&
         /^https?:\/\/localhost:\d+$/i.test(origin);
-      if (explicit || isProdLocalhost) return callback(null, true);
+      if (explicit || vercelDomain || isProdLocalhost) {
+        return callback(null, true);
+      }
 
-      return callback(new Error("CORS origin not allowed"));
+      const corsError = new Error("CORS origin not allowed");
+      corsError.statusCode = 403;
+      return callback(corsError);
     },
     credentials: true,
     maxAge: 86400,
