@@ -10,6 +10,7 @@ export default function PipelineDemo({ voiceSpeed = 'normal' }) {
   const {
     videoRef,
     error: cameraError,
+    cameraNotice,
     permissionState,
     isStarting,
     isActive,
@@ -93,6 +94,7 @@ export default function PipelineDemo({ voiceSpeed = 'normal' }) {
         isActive={isActive}
         permissionState={permissionState}
         capturedImage={capturedImage}
+        cameraNotice={cameraNotice}
         faceDetectionLabel={detectionLabel}
         isDetectingFace={isDetecting}
         statusText={

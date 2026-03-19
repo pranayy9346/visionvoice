@@ -5,6 +5,7 @@ export default function PipelineMediaCards({
   isActive,
   permissionState,
   capturedImage,
+  cameraNotice,
   faceDetectionLabel,
   isDetectingFace,
   statusText,
@@ -13,6 +14,7 @@ export default function PipelineMediaCards({
     <section className="pipeline-grid" aria-label="Live media panel">
       <article className="pipeline-card" aria-label="Live camera">
         <h3>Live Camera</h3>
+        {cameraNotice ? <p className="mb-2 text-xs text-slate-300">{cameraNotice}</p> : null}
         <div className="pipeline-media-frame">
           <CameraPanel
             videoRef={videoRef}

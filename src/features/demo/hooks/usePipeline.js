@@ -295,7 +295,7 @@ export default function usePipeline({
           transcriptText,
           {
             scene: lastSceneRef.current || undefined,
-            recognizedPersonName: detectedName || "",
+            recognizedPersonName: backgroundImage ? detectedName || "" : "",
           },
         );
 

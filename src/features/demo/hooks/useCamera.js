@@ -1,5 +1,91 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+function buildCameraAttempts(baseConstraints) {
+  const hasObjectConstraints =
+    baseConstraints &&
+    typeof baseConstraints === "object" &&
+    !Array.isArray(baseConstraints);
+
+  const baseVideo =
+    hasObjectConstraints &&
+    baseConstraints.video &&
+    typeof baseConstraints.video === "object" &&
+    !Array.isArray(baseConstraints.video)
+      ? baseConstraints.video
+      : {};
+
+  const audio =
+    hasObjectConstraints && typeof baseConstraints.audio !== "undefined"
+      ? baseConstraints.audio
+      : false;
+
+  return [
+    {
+      label: "back-exact",
+      notice: "",
+      requireBackFacing: true,
+      constraints: {
+        audio,
+        video: {
+          ...baseVideo,
+          facingMode: { exact: "environment" },
+        },
+      },
+    },
+    {
+      label: "back-ideal",
+      notice: "",
+      requireBackFacing: true,
+      constraints: {
+        audio,
+        video: {
+          ...baseVideo,
+          facingMode: { ideal: "environment" },
+        },
+      },
+    },
+    {
+      label: "front",
+      notice: "Using front camera because back camera was not available.",
+      requireBackFacing: false,
+      constraints: {
+        audio,
+        video: {
+          ...baseVideo,
+          facingMode: { exact: "user" },
+        },
+      },
+    },
+    {
+      label: "default",
+      notice: "Using available camera.",
+      requireBackFacing: false,
+      constraints: hasObjectConstraints
+        ? { ...baseConstraints, audio }
+        : { video: true, audio },
+    },
+  ];
+}
+
+function streamLooksBackFacing(stream) {
+  const videoTrack = stream?.getVideoTracks?.()[0];
+  if (!videoTrack) {
+    return false;
+  }
+
+  const settings =
+    typeof videoTrack.getSettings === "function"
+      ? videoTrack.getSettings()
+      : {};
+  const facingMode = String(settings?.facingMode || "").toLowerCase();
+  if (facingMode.includes("environment") || facingMode.includes("rear")) {
+    return true;
+  }
+
+  const label = String(videoTrack.label || "").toLowerCase();
+  return /rear|back|environment|world/.test(label);
+}
+
 export default function useCamera({
   videoConstraints = { video: true },
   imageType = "image/jpeg",
@@ -16,6 +102,21 @@ export default function useCamera({
   const [permissionState, setPermissionState] = useState("unknown");
   const [isStarting, setIsStarting] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [cameraNotice, setCameraNotice] = useState("");
+
+  useEffect(() => {
+    if (!cameraNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCameraNotice("");
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [cameraNotice]);
 
   useEffect(() => {
     constraintsRef.current = videoConstraints;
@@ -50,9 +151,33 @@ export default function useCamera({
     try {
       stopCamera();
 
-      const stream = await navigator.mediaDevices.getUserMedia(
-        constraintsRef.current,
-      );
+      const attempts = buildCameraAttempts(constraintsRef.current);
+      let stream = null;
+      let selectedAttempt = null;
+      let lastAttemptError = null;
+
+      for (const attempt of attempts) {
+        try {
+          const candidate = await navigator.mediaDevices.getUserMedia(
+            attempt.constraints,
+          );
+
+          if (attempt.requireBackFacing && !streamLooksBackFacing(candidate)) {
+            candidate.getTracks().forEach((track) => track.stop());
+            continue;
+          }
+
+          stream = candidate;
+          selectedAttempt = attempt;
+          break;
+        } catch (attemptError) {
+          lastAttemptError = attemptError;
+        }
+      }
+
+      if (!stream) {
+        throw lastAttemptError || new Error("Unable to start camera stream.");
+      }
 
       if (requestId !== requestIdRef.current) {
         stream.getTracks().forEach((track) => track.stop());
@@ -68,6 +193,7 @@ export default function useCamera({
 
       setPermissionState("granted");
       setIsActive(true);
+      setCameraNotice(selectedAttempt?.notice || "");
       return true;
     } catch (cameraError) {
       if (cameraError?.name === "NotAllowedError") {
@@ -84,6 +210,7 @@ export default function useCamera({
       }
 
       setIsActive(false);
+      setCameraNotice("");
       return false;
     } finally {
       if (requestId === requestIdRef.current) {
@@ -148,6 +275,7 @@ export default function useCamera({
     videoRef,
     capturedImage,
     error,
+    cameraNotice,
     permissionState,
     isStarting,
     isActive,
