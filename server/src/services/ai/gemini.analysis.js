@@ -129,7 +129,7 @@ export function analyzeFromCache({ scene, imageAge, preferences }) {
   return {
     response: normalizeDescription(segments.join(" ")),
     confidence: Number(clamp(0.82 - ageMinutes * 0.03, 0.25, 0.82).toFixed(2)),
-    reason: `Used memory cache from ${ageMinutes} minute(s) ago to reduce cost and latency.`,
+    reason: `Using recent view from ${ageMinutes} minute(s) ago.`,
   };
 }
 

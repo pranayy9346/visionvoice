@@ -30,17 +30,17 @@ function createFallback(error, sceneFromMemory) {
     : [];
 
   const fallbackResponse = summary
-    ? `I could not reach live analysis, but from recent memory: ${summary}`
+    ? `Using recent view: ${summary}`
     : hazards.length || objects.length
-      ? `I could not reach live analysis. Last known hazards: ${hazards.slice(0, 3).join(", ") || "none"}. Key objects: ${objects.slice(0, 4).join(", ") || "none"}.`
-      : "Live analysis is temporarily unavailable. Please try again in a moment.";
+      ? `Using recent view. Last known hazards: ${hazards.slice(0, 3).join(", ") || "none"}. Key objects: ${objects.slice(0, 4).join(", ") || "none"}.`
+      : "Using recent view. Please ask again for a fresh check.";
 
   return {
     response: fallbackResponse,
     confidence: summary || hazards.length || objects.length ? 0.45 : 0.25,
     reason: isRate
-      ? "Live model rate limit reached."
-      : "Live model request failed, used latest memory context.",
+      ? "Using recent view due to temporary model rate limit."
+      : "Using recent view due to temporary live-analysis issue.",
     source: "fallback",
     scene: sceneFromMemory,
     analysisSource: "fallback",

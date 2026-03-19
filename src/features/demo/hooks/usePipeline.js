@@ -131,6 +131,22 @@ function buildDistanceAwareResponse({
   return fallbackText;
 }
 
+function isIdentityQuery(query = "") {
+  const normalized = typeof query === "string" ? query.toLowerCase() : "";
+  if (!normalized.trim()) {
+    return false;
+  }
+
+  return [
+    /\bwho\b.*\b(front|here|there|ahead|with me|in front)\b/i,
+    /\bwho\s+is\s+(in\s+front|here|there|this|that)\b/i,
+    /\bidentify\b.*\b(person|face|who)\b/i,
+    /\bwho\s+am\s+i\s+looking\s+at\b/i,
+    /\bperson\s+in\s+front\b/i,
+    /\bwhose\s+face\b/i,
+  ].some((pattern) => pattern.test(normalized));
+}
+
 export default function usePipeline({
   captureImage,
   clearCapturedImage,
@@ -294,6 +310,11 @@ export default function usePipeline({
       try {
         backgroundImage = (await pendingCapture) || "";
 
+        if (isIdentityQuery(transcriptText) && !backgroundImage) {
+          // Identity intent requires a fresh frame; try one immediate recapture.
+          backgroundImage = (await captureImageAsync()) || "";
+        }
+
         const payload = await analyzeImage(
           backgroundImage || null,
           transcriptText,
@@ -367,7 +388,13 @@ export default function usePipeline({
         }
       }
     },
-    [clearCapturedImage, detectedName, getDistanceInfo, playResponse],
+    [
+      captureImageAsync,
+      clearCapturedImage,
+      detectedName,
+      getDistanceInfo,
+      playResponse,
+    ],
   );
 
   const startListening = useCallback(async () => {

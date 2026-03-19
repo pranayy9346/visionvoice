@@ -30,7 +30,7 @@ import {
   resolveSceneAgeSeconds,
 } from "./assistant.helpers.js";
 import { analyzeWithPersistence } from "./assistant.analysis.service.js";
-import { resolveDecision } from "./assistant.decision.service.js";
+import { detectIntent, resolveDecision } from "./assistant.decision.service.js";
 
 export function createAssistantService({ maxImageBytes }) {
   function resolvePreferredVoiceId(profile, overrideVoiceId) {
@@ -77,6 +77,8 @@ export function createAssistantService({ maxImageBytes }) {
     const history = buildConversationText(recent);
     const sceneFromMemory = scene || findLastScene(recent);
     const imageAge = resolveSceneAgeSeconds(sceneFromMemory);
+    const intent = detectIntent(normalizedQuery);
+    const resolvedUseCache = intent === "identity" ? false : useCache;
 
     const analysis = await analyzeWithPersistence({
       userId,
@@ -84,7 +86,7 @@ export function createAssistantService({ maxImageBytes }) {
       imageInput,
       history,
       sceneFromMemory,
-      useCache,
+      useCache: resolvedUseCache,
       imageAge,
       preferences,
       recognizedPersonName,
