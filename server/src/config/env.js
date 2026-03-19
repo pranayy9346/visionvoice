@@ -13,14 +13,15 @@ export function getEnvConfig() {
   const maxImageBytes = Number(process.env.MAX_IMAGE_BYTES || 6 * 1024 * 1024);
   const nodeEnv = process.env.NODE_ENV || "development";
 
-  // Validate required production env vars
+  // Warn on missing production env vars without blocking startup.
+  // This allows Render to detect the open port while dependencies recover.
   if (nodeEnv === "production") {
     const required = { MONGODB_URI: mongodbUri, GEMINI_API_KEY: geminiApiKey };
     const missing = Object.entries(required)
       .filter(([, value]) => !value)
       .map(([key]) => key);
     if (missing.length) {
-      throw new Error(`Missing required env vars: ${missing.join(", ")}`);
+      console.warn(`Missing recommended env vars: ${missing.join(", ")}`);
     }
   }
 

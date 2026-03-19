@@ -44,17 +44,8 @@ function createCorsOptions(frontendOrigin) {
   };
 }
 
-export async function startServer() {
+export function startServer() {
   const app = express();
-
-  // Connect database before starting server
-  try {
-    await connectDatabase(env.mongodbUri);
-    console.log("Database connected successfully.");
-  } catch (dbError) {
-    console.error("Database connection failed:", dbError.message);
-    process.exit(1);
-  }
 
   const assistantService = createAssistantService({
     maxImageBytes: env.maxImageBytes,
@@ -65,7 +56,7 @@ export async function startServer() {
   app.use(requestLogging);
   app.use(express.json({ limit: "8mb" }));
   app.use(express.urlencoded({ limit: "8mb", extended: true }));
-  app.use(cors(createCorsOptions(env.frontendOrigin)));
+  app.use(cors({ origin: "*" }));
 
   // Security headers
   app.use((req, res, next) => {
@@ -76,6 +67,10 @@ export async function startServer() {
       "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     });
     next();
+  });
+
+  app.get("/", (_request, response) => {
+    response.send("Server is running");
   });
 
   // Health check with detailed status
@@ -91,10 +86,21 @@ export async function startServer() {
     res.status(404).json({ error: "Endpoint not found." });
   });
 
-  const PORT = process.env.PORT || env.port || 5000;
+  const PORT = process.env.PORT || 5000;
+  console.log("Starting server...");
+  console.log("PORT:", process.env.PORT);
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`VisionVoice API ready on port ${PORT} (${env.nodeEnv})`);
   });
+
+  // Connect DB in the background so port is always opened for Render.
+  connectDatabase(env.mongodbUri)
+    .then(() => {
+      console.log("Database connected successfully.");
+    })
+    .catch((dbError) => {
+      console.error("Database connection failed:", dbError.message);
+    });
 
   // Graceful shutdown
   const shutdown = async (signal) => {
@@ -116,4 +122,6 @@ export async function startServer() {
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
+
+  return server;
 }
