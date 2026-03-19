@@ -72,5 +72,52 @@ export function parseJsonResponse(rawText) {
     .replace(/\n?```$/, "")
     .trim();
 
-  return JSON.parse(trimmed);
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // Gemini can prepend commentary; recover by extracting the first JSON object.
+    const start = trimmed.indexOf("{");
+    if (start < 0) {
+      throw new Error("Model response did not include JSON content.");
+    }
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let index = start; index < trimmed.length; index += 1) {
+      const char = trimmed[index];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (inString) {
+        continue;
+      }
+
+      if (char === "{") {
+        depth += 1;
+      } else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          const candidate = trimmed.slice(start, index + 1);
+          return JSON.parse(candidate);
+        }
+      }
+    }
+
+    throw new Error("Model JSON response was incomplete.");
+  }
 }

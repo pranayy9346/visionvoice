@@ -7,7 +7,7 @@ export function getEnvConfig() {
   const mongodbUri = process.env.MONGODB_URI;
   const geminiApiKey = process.env.GEMINI_API_KEY;
   const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  const murfinApiKey = process.env.MURF_API_KEY;
+  const murfApiKey = process.env.MURF_API_KEY;
   const murfVoiceId = process.env.MURF_VOICE_ID || "en-US-natalie";
   const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
   const maxImageBytes = Number(process.env.MAX_IMAGE_BYTES || 6 * 1024 * 1024);
@@ -30,7 +30,7 @@ export function getEnvConfig() {
     mongodbUri,
     geminiApiKey,
     geminiModel,
-    murfinApiKey,
+    murfApiKey,
     murfVoiceId,
     frontendOrigin,
     maxImageBytes,

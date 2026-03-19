@@ -33,28 +33,59 @@ async function runAdaptiveAnalysis({
   userId,
 }) {
   if (imageInput.hasImage) {
-    const match = await findBestPersonalObjectMatch({
-      userId,
-      base64Data: imageInput.base64Data,
-      mimeType: imageInput.mimeType,
-    });
+    let match = null;
+    try {
+      match = await findBestPersonalObjectMatch({
+        userId,
+        base64Data: imageInput.base64Data,
+        mimeType: imageInput.mimeType,
+      });
+    } catch (error) {
+      console.warn(
+        "Personal object matching unavailable; continuing without match:",
+        error?.message || error,
+      );
+    }
 
-    const result = await analyzeFromImage({
-      base64Data: imageInput.base64Data,
-      mimeType: imageInput.mimeType,
-      query: normalizedQuery,
-      history,
-      preferences,
-      personalObjectContext: buildPersonalObjectContext(match),
-    });
+    try {
+      const result = await analyzeFromImage({
+        base64Data: imageInput.base64Data,
+        mimeType: imageInput.mimeType,
+        query: normalizedQuery,
+        history,
+        preferences,
+        personalObjectContext: buildPersonalObjectContext(match),
+      });
 
-    return {
-      ...result,
-      source: "image",
-      scene: { ...result.scene, timestamp: new Date() },
-      personalObject: match,
-      analysisSource: "gemini",
-    };
+      return {
+        ...result,
+        source: "image",
+        scene: { ...result.scene, timestamp: new Date() },
+        personalObject: match,
+        analysisSource: "gemini",
+      };
+    } catch (error) {
+      console.warn(
+        "Image analysis unavailable; falling back to text reasoning:",
+        error?.message || error,
+      );
+      const textFallback = await analyzeFromText({
+        query: normalizedQuery,
+        history,
+        preferences,
+      });
+
+      return {
+        ...textFallback,
+        source: "text",
+        scene: sceneFromMemory,
+        personalObject: match,
+        analysisSource: "gemini",
+        reason:
+          textFallback.reason ||
+          "Image analysis unavailable; used text reasoning instead.",
+      };
+    }
   }
 
   if (useCache === true && sceneFromMemory) {
@@ -110,6 +141,10 @@ export async function analyzeWithPersistence({
       userId,
     });
   } catch (error) {
+    console.error(
+      "Adaptive analysis failed; using fallback response:",
+      error?.message || error,
+    );
     output = createFallback(error, sceneFromMemory);
   }
 

@@ -12,38 +12,6 @@ import { createAssistantService } from "./services/vision/assistant.service.js";
 
 const env = getEnvConfig();
 
-function createCorsOptions(frontendOrigin) {
-  const allowedOrigins = new Set(
-    frontendOrigin
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
-
-  return {
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-
-      const explicit = allowedOrigins.has(origin);
-      const vercelDomain = /^https:\/\/([a-z0-9-]+)\.vercel\.app$/i.test(
-        origin,
-      );
-      const isProdLocalhost =
-        env.nodeEnv === "development" &&
-        /^https?:\/\/localhost:\d+$/i.test(origin);
-      if (explicit || vercelDomain || isProdLocalhost) {
-        return callback(null, true);
-      }
-
-      const corsError = new Error("CORS origin not allowed");
-      corsError.statusCode = 403;
-      return callback(corsError);
-    },
-    credentials: true,
-    maxAge: 86400,
-  };
-}
-
 export function startServer() {
   const app = express();
 

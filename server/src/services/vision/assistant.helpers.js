@@ -2,6 +2,7 @@ import { parseBase64Image } from "../../utils/image.js";
 
 export function buildConversationText(items) {
   return items
+    .filter((item) => item?.source !== "fallback")
     .slice()
     .reverse()
     .map((item) => `User: ${item.query}\nAssistant: ${item.description}`)

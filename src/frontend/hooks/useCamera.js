@@ -4,6 +4,7 @@ export default function useCamera({
   videoConstraints = { video: true },
   imageType = "image/jpeg",
   imageQuality = 0.92,
+  maxCaptureDimension = 1280,
 } = {}) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -107,9 +108,17 @@ export default function useCamera({
       return "";
     }
 
+    const ratio =
+      width > height
+        ? maxCaptureDimension / width
+        : maxCaptureDimension / height;
+    const scale = Number.isFinite(ratio) && ratio > 0 && ratio < 1 ? ratio : 1;
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -117,7 +126,7 @@ export default function useCamera({
       return "";
     }
 
-    context.drawImage(videoElement, 0, 0, width, height);
+    context.drawImage(videoElement, 0, 0, targetWidth, targetHeight);
     const base64Image = canvas.toDataURL(imageType, imageQuality);
 
     setCapturedImage(base64Image);
