@@ -36,6 +36,9 @@ export function createAssistantService({ maxImageBytes }) {
   function resolvePreferredVoiceId(profile, overrideVoiceId) {
     const override =
       typeof overrideVoiceId === "string" ? overrideVoiceId.trim() : "";
+    if (override === "default") {
+      return process.env.MURF_VOICE_ID || "en-US-natalie";
+    }
     if (override) {
       return override;
     }

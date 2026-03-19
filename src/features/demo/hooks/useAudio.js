@@ -235,6 +235,38 @@ export default function useAudio() {
 
         return generatedAudioUrl;
       } catch (playbackError) {
+        const canFallbackToDefaultMurf =
+          !allowBrowserFallback &&
+          typeof voiceId === "string" &&
+          voiceId.trim();
+
+        if (canFallbackToDefaultMurf) {
+          try {
+            const defaultVoiceAudioUrl = await fetchSpeechAudioUrl(
+              text.trim(),
+              "default",
+            );
+
+            if (defaultVoiceAudioUrl) {
+              if (!audioRef.current) {
+                audioRef.current = new Audio();
+              }
+
+              setAudioUrl(defaultVoiceAudioUrl);
+              audioRef.current.src = defaultVoiceAudioUrl;
+              audioRef.current.playbackRate = playbackRate;
+              await audioRef.current.play();
+              setIsPlaying(true);
+              setError(
+                "Custom voice unavailable, switched to default Murf voice.",
+              );
+              return defaultVoiceAudioUrl;
+            }
+          } catch {
+            // Continue to existing fallback/error handling when default Murf voice also fails.
+          }
+        }
+
         if (allowBrowserFallback) {
           const browserSpoken = await speakWithBrowser(
             text.trim(),

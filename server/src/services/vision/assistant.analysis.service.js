@@ -191,15 +191,30 @@ export async function analyzeWithPersistence({
     output = createFallback(error, sceneFromMemory);
   }
 
+  const safeResponse =
+    typeof output?.response === "string" && output.response.trim()
+      ? output.response.trim()
+      : "I could not generate a response.";
+  const safeReason =
+    typeof output?.reason === "string" && output.reason.trim()
+      ? output.reason.trim()
+      : "No reasoning available.";
+  const safeConfidence =
+    typeof output?.confidence === "number"
+      ? output.confidence
+      : output?.analysisSource === "gemini"
+        ? 0.65
+        : 0.25;
+
   const usedImage = output?.source === "image";
 
   const saved = await createAnalysisRecord({
     userId,
     imageUrl: usedImage ? imageInput.originalImage : null,
     query: normalizedQuery,
-    description: output.response,
-    confidence: output.confidence,
-    reason: output.reason,
+    description: safeResponse,
+    confidence: safeConfidence,
+    reason: safeReason,
     source: output.source,
     scene: output.scene,
   });
