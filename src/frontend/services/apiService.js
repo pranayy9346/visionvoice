@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+  import.meta.env.VITE_API_BASE_URL || "https://visionvoice-l9ki.onrender.com";
 const USER_ID_STORAGE_KEY = "visionvoice-user-id";
 
 export const DEFAULT_PREFERENCES = {
