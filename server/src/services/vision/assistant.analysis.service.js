@@ -5,7 +5,11 @@ import {
 } from "../ai/gemini.service.js";
 import { createAnalysisRecord } from "../../modules/scene/scene.repository.js";
 import { findBestPersonalObjectMatch } from "../../modules/personalObject/personalObject.service.js";
-import { buildPersonalObjectContext } from "./assistant.helpers.js";
+import {
+  buildPersonalObjectContext,
+  buildRecognizedPersonContext,
+  combineRecognitionContext,
+} from "./assistant.helpers.js";
 
 function createFallback(error, sceneFromMemory) {
   const isRate = (error?.message || "").includes("RATE_LIMITED");
@@ -31,6 +35,7 @@ async function runAdaptiveAnalysis({
   imageInput,
   preferences,
   userId,
+  recognizedPersonName,
 }) {
   if (imageInput.hasImage) {
     let match = null;
@@ -47,6 +52,11 @@ async function runAdaptiveAnalysis({
       );
     }
 
+    const recognitionContext = combineRecognitionContext(
+      buildPersonalObjectContext(match),
+      buildRecognizedPersonContext(recognizedPersonName),
+    );
+
     try {
       const result = await analyzeFromImage({
         base64Data: imageInput.base64Data,
@@ -54,7 +64,7 @@ async function runAdaptiveAnalysis({
         query: normalizedQuery,
         history,
         preferences,
-        personalObjectContext: buildPersonalObjectContext(match),
+        recognitionContext,
       });
 
       return {
@@ -127,6 +137,7 @@ export async function analyzeWithPersistence({
   useCache,
   imageAge,
   preferences,
+  recognizedPersonName,
 }) {
   let output;
   try {
@@ -139,6 +150,7 @@ export async function analyzeWithPersistence({
       imageInput,
       preferences,
       userId,
+      recognizedPersonName,
     });
   } catch (error) {
     console.error(
@@ -148,9 +160,11 @@ export async function analyzeWithPersistence({
     output = createFallback(error, sceneFromMemory);
   }
 
+  const usedImage = output?.source === "image";
+
   const saved = await createAnalysisRecord({
     userId,
-    imageUrl: imageInput.hasImage ? imageInput.originalImage : null,
+    imageUrl: usedImage ? imageInput.originalImage : null,
     query: normalizedQuery,
     description: output.response,
     confidence: output.confidence,
@@ -165,7 +179,7 @@ export async function analyzeWithPersistence({
     description: saved.description,
     imageUrl: saved.imageUrl,
     scene: saved.scene,
-    usedImage: imageInput.hasImage,
+    usedImage,
     source: saved.source,
     confidence: saved.confidence,
     reason: saved.reason,

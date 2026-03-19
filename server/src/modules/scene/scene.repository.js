@@ -24,3 +24,8 @@ export async function getHistoryByUser(userId, limit = 10) {
     })
     .lean();
 }
+
+export async function clearHistoryByUser(userId) {
+  const result = await Analysis.deleteMany({ userId });
+  return { deletedCount: result.deletedCount || 0 };
+}

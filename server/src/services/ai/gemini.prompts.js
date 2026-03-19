@@ -40,15 +40,15 @@ export function buildImagePrompt({
   query,
   history,
   preferences,
-  personalObjectContext,
+  recognitionContext,
 }) {
   const historyText = history?.trim() || "No previous conversation.";
   const preferenceInstructions = buildPreferenceInstructions(preferences);
-  const personalSection = personalObjectContext
-    ? `\nKnown personal item context:\n${personalObjectContext}\n`
+  const recognitionSection = recognitionContext
+    ? `\nMatched context from saved images:\n${recognitionContext}\n`
     : "";
 
-  return `${BASE_PROMPT}\n\nUser query:\n${query}\n\nConversation:\n${historyText}${personalSection}\nInstructions:\n- Describe important objects first\n- Mention hazards clearly\n- Mention readable text\n- Keep language simple and natural\n- Prioritize safety information\n- If personal item context is relevant, mention it clearly\n${preferenceInstructions}\n\nRespond ONLY as valid JSON:\n{\n  "response": "short natural response",\n  "confidence": 0.0,\n  "reason": "short explanation",\n  "scene": {\n    "objects": ["..."],\n    "positions": ["..."],\n    "hazards": ["..."],\n    "text": ["..."],\n    "summary": "..."\n  }\n}`;
+  return `${BASE_PROMPT}\n\nUser query:\n${query}\n\nConversation:\n${historyText}${recognitionSection}\nInstructions:\n- Describe important objects first\n- Mention hazards clearly\n- Mention readable text\n- Keep language simple and natural\n- Prioritize safety information\n- If matched context from saved images is relevant, mention it clearly\n${preferenceInstructions}\n\nRespond ONLY as valid JSON:\n{\n  "response": "short natural response",\n  "confidence": 0.0,\n  "reason": "short explanation",\n  "scene": {\n    "objects": ["..."],\n    "positions": ["..."],\n    "hazards": ["..."],\n    "text": ["..."],\n    "summary": "..."\n  }\n}`;
 }
 
 export function buildTextPrompt({ query, history, preferences }) {

@@ -47,3 +47,21 @@ export function buildPersonalObjectContext(match) {
   if (!match) return "";
   return `Matched personal object: ${match.name} (similarity ${match.similarity}). Signature: ${match.signature}.`;
 }
+
+export function buildRecognizedPersonContext(recognizedPersonName) {
+  if (
+    !recognizedPersonName ||
+    typeof recognizedPersonName !== "string" ||
+    !recognizedPersonName.trim()
+  ) {
+    return "";
+  }
+
+  return `Matched known person from saved images: ${recognizedPersonName.trim()}.`;
+}
+
+export function combineRecognitionContext(...segments) {
+  return segments
+    .filter((segment) => typeof segment === "string" && segment.trim())
+    .join("\n");
+}

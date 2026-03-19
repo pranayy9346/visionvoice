@@ -29,6 +29,10 @@ const preferencesSchema = new mongoose.Schema(
 const userProfileSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true, unique: true, index: true },
+    name: { type: String, default: "" },
+    email: { type: String, default: "" },
+    useCase: { type: String, default: "" },
+    onboarded: { type: Boolean, default: false },
     preferences: { type: preferencesSchema, default: () => ({}) },
     updatedAt: { type: Date, default: Date.now },
   },

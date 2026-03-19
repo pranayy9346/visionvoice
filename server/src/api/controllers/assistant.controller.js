@@ -10,6 +10,7 @@ export function createAssistantController(assistantService) {
         image: request.body?.image,
         scene: request.body?.scene,
         useCache: request.body?.useCache,
+        recognizedPersonName: request.body?.recognizedPersonName,
       });
       return response.status(201).json(result);
     } catch (error) {
@@ -60,6 +61,18 @@ export function createAssistantController(assistantService) {
     }
   };
 
+  const clearHistory = async (request, response) => {
+    try {
+      const userId = resolveUserId(request);
+      const result = await assistantService.clearHistory(userId);
+      return response.json(result);
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ error: error.message || "Failed to clear history." });
+    }
+  };
+
   const getProfile = async (request, response) => {
     try {
       const userId = request.params?.userId?.trim() || resolveUserId(request);
@@ -84,6 +97,53 @@ export function createAssistantController(assistantService) {
       return response
         .status(500)
         .json({ error: error.message || "Failed to update user profile." });
+    }
+  };
+
+  const syncUser = async (request, response) => {
+    try {
+      const userId = request.body?.userId;
+      if (!userId || typeof userId !== "string" || !userId.trim()) {
+        return response
+          .status(400)
+          .json({ error: "Request body must include authenticated userId." });
+      }
+
+      const profile = await assistantService.syncUser({
+        userId: userId.trim(),
+        email: request.body?.email,
+        name: request.body?.name,
+      });
+
+      return response.json(profile);
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ error: error.message || "Failed to sync user profile." });
+    }
+  };
+
+  const completeOnboarding = async (request, response) => {
+    try {
+      const userId = request.body?.userId;
+      if (!userId || typeof userId !== "string" || !userId.trim()) {
+        return response
+          .status(400)
+          .json({ error: "Request body must include authenticated userId." });
+      }
+
+      const profile = await assistantService.completeOnboarding({
+        userId: userId.trim(),
+        name: request.body?.name,
+        useCase: request.body?.useCase,
+        email: request.body?.email,
+      });
+
+      return response.json(profile);
+    } catch (error) {
+      return response
+        .status(400)
+        .json({ error: error.message || "Failed to complete onboarding." });
     }
   };
 
@@ -152,16 +212,78 @@ export function createAssistantController(assistantService) {
     }
   };
 
+  const getKnownPersons = async (request, response) => {
+    try {
+      const userId = resolveUserId(request);
+      const items = await assistantService.getKnownPersons(userId);
+      return response.json({ items });
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ error: error.message || "Failed to load known persons." });
+    }
+  };
+
+  const createKnownPerson = async (request, response) => {
+    try {
+      const userId = resolveUserId(request);
+      const item = await assistantService.registerKnownPerson(
+        userId,
+        request.body,
+      );
+      return response.status(201).json(item);
+    } catch (error) {
+      return response
+        .status(400)
+        .json({ error: error.message || "Failed to save known person." });
+    }
+  };
+
+  const deleteKnownPerson = async (request, response) => {
+    try {
+      const userId = resolveUserId(request);
+      const personId = request.params?.id || request.body?.id;
+      const deleted = await assistantService.deleteKnownPerson(
+        userId,
+        personId,
+      );
+      return response.json({ deleted });
+    } catch (error) {
+      return response
+        .status(400)
+        .json({ error: error.message || "Failed to delete known person." });
+    }
+  };
+
+  const clearKnownPersons = async (request, response) => {
+    try {
+      const userId = resolveUserId(request);
+      const result = await assistantService.removeAllKnownPersons(userId);
+      return response.json(result);
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ error: error.message || "Failed to clear known persons." });
+    }
+  };
+
   return {
     analyze,
     decision,
     history,
+    clearHistory,
     getProfile,
     updateProfile,
+    syncUser,
+    completeOnboarding,
     getPersonalObjects,
     createPersonalObject,
     deletePersonalObject,
     generateSpeech,
+    getKnownPersons,
+    createKnownPerson,
+    deleteKnownPerson,
+    clearKnownPersons,
     shouldCapture: decision,
   };
 }

@@ -7,14 +7,21 @@ export function createAssistantRoutes(controller) {
   router.post("/decision", controller.decision);
   router.post("/should-capture", controller.shouldCapture);
   router.get("/history", controller.history);
+  router.delete("/history", controller.clearHistory);
   router.get("/profile/:userId", controller.getProfile);
   router.put("/profile/:userId", controller.updateProfile);
+  router.post("/auth/sync", controller.syncUser);
+  router.post("/onboarding", controller.completeOnboarding);
   router.get("/personal-objects", controller.getPersonalObjects);
   router.post("/personal-objects", controller.createPersonalObject);
   router.delete("/personal-objects/:id", controller.deletePersonalObject);
   router.get("/objects", controller.getPersonalObjects);
   router.post("/add-object", controller.createPersonalObject);
   router.delete("/objects/:id", controller.deletePersonalObject);
+  router.get("/known-persons", controller.getKnownPersons);
+  router.post("/known-persons", controller.createKnownPerson);
+  router.delete("/known-persons", controller.clearKnownPersons);
+  router.delete("/known-persons/:id", controller.deleteKnownPerson);
   router.post("/speech", controller.generateSpeech);
 
   return router;

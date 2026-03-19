@@ -2,12 +2,16 @@ import cors from "cors";
 import express from "express";
 import { createAssistantController } from "./api/controllers/assistant.controller.js";
 import { createAssistantRoutes } from "./api/routes/assistant.routes.js";
+import { createUserController } from "./controllers/userController.js";
 import { getEnvConfig } from "./config/env.js";
-import { connectDatabase } from "./db/connection.js";
+import { connectDatabase } from "./config/db.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
 import {
   errorMiddleware,
   requestLogging,
 } from "./middleware/error.middleware.js";
+import { createUserRoutes } from "./routes/userRoutes.js";
+import { createUserService } from "./services/userService.js";
 import { createAssistantService } from "./services/vision/assistant.service.js";
 
 const env = getEnvConfig();
@@ -19,12 +23,15 @@ export function startServer() {
     maxImageBytes: env.maxImageBytes,
   });
   const assistantController = createAssistantController(assistantService);
+  const userService = createUserService();
+  const userController = createUserController(userService);
 
   // Security & performance middleware
   app.use(requestLogging);
   app.use(express.json({ limit: "8mb" }));
   app.use(express.urlencoded({ limit: "8mb", extended: true }));
   app.use(cors({ origin: "*" }));
+  app.use(authMiddleware);
 
   // Security headers
   app.use((req, res, next) => {
@@ -46,6 +53,7 @@ export function startServer() {
     response.json({ status: "ready", timestamp: new Date().toISOString() });
   });
 
+  app.use("/api", createUserRoutes(userController));
   app.use("/api", createAssistantRoutes(assistantController));
   app.use(errorMiddleware);
 

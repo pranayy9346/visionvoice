@@ -1,11 +1,14 @@
 import {
+  clearHistoryByUser,
   getHistoryByUser,
   getRecentAnalysesByUser,
 } from "../../modules/scene/scene.repository.js";
 import {
   DEFAULT_PREFERENCES,
   applyAdaptivePreferences,
+  completeUserOnboarding,
   getOrCreateProfile,
+  syncAuthUser,
   updateProfile,
 } from "../../modules/user/userProfile.service.js";
 import {
@@ -13,6 +16,12 @@ import {
   listPersonalObjects,
   savePersonalObject,
 } from "../../modules/personalObject/personalObject.service.js";
+import {
+  clearKnownPersons,
+  deleteKnownPersonById,
+  listKnownPersons,
+  saveKnownPerson,
+} from "../../modules/knownPerson/knownPerson.service.js";
 import { generateSpeechAudioUrl } from "../audio/murf.service.js";
 import {
   buildConversationText,
@@ -24,7 +33,14 @@ import { analyzeWithPersistence } from "./assistant.analysis.service.js";
 import { resolveDecision } from "./assistant.decision.service.js";
 
 export function createAssistantService({ maxImageBytes }) {
-  async function analyze({ userId, query, image, scene, useCache }) {
+  async function analyze({
+    userId,
+    query,
+    image,
+    scene,
+    useCache,
+    recognizedPersonName,
+  }) {
     const normalizedQuery =
       query?.trim() || "Please describe what is around me.";
     const profile = await getOrCreateProfile(userId);
@@ -48,6 +64,7 @@ export function createAssistantService({ maxImageBytes }) {
       useCache,
       imageAge,
       preferences,
+      recognizedPersonName,
     });
 
     return {
@@ -81,10 +98,48 @@ export function createAssistantService({ maxImageBytes }) {
     return getHistoryByUser(userId, 10);
   }
 
+  async function clearHistory(userId) {
+    return clearHistoryByUser(userId);
+  }
+
   async function getProfile(userId) {
     const profile = await getOrCreateProfile(userId);
     return {
       userId,
+      name: profile?.name || "",
+      email: profile?.email || "",
+      useCase: profile?.useCase || "",
+      onboarded: profile?.onboarded === true,
+      preferences: { ...DEFAULT_PREFERENCES, ...(profile?.preferences || {}) },
+    };
+  }
+
+  async function syncUser({ userId, email, name }) {
+    const profile = await syncAuthUser({ userId, email, name });
+    return {
+      userId: profile.userId,
+      name: profile?.name || "",
+      email: profile?.email || "",
+      useCase: profile?.useCase || "",
+      onboarded: profile?.onboarded === true,
+      preferences: { ...DEFAULT_PREFERENCES, ...(profile?.preferences || {}) },
+    };
+  }
+
+  async function completeOnboarding({ userId, name, useCase, email }) {
+    const profile = await completeUserOnboarding({
+      userId,
+      name,
+      useCase,
+      email,
+    });
+
+    return {
+      userId: profile.userId,
+      name: profile?.name || "",
+      email: profile?.email || "",
+      useCase: profile?.useCase || "",
+      onboarded: profile?.onboarded === true,
       preferences: { ...DEFAULT_PREFERENCES, ...(profile?.preferences || {}) },
     };
   }
@@ -115,15 +170,42 @@ export function createAssistantService({ maxImageBytes }) {
     return generateSpeechAudioUrl(text);
   }
 
+  async function getKnownPersons(userId) {
+    return listKnownPersons(userId);
+  }
+
+  async function registerKnownPerson(userId, payload) {
+    return saveKnownPerson({
+      userId,
+      name: payload?.name,
+      embeddings: payload?.embeddings,
+    });
+  }
+
+  async function deleteKnownPerson(userId, personId) {
+    return deleteKnownPersonById(userId, personId);
+  }
+
+  async function removeAllKnownPersons(userId) {
+    return clearKnownPersons(userId);
+  }
+
   return {
     analyze,
     decide,
     getHistory,
+    clearHistory,
     getProfile,
+    syncUser,
+    completeOnboarding,
     saveProfile,
     getPersonalObjects,
     registerPersonalObject,
     deletePersonalObject,
     generateSpeech,
+    getKnownPersons,
+    registerKnownPerson,
+    deleteKnownPerson,
+    removeAllKnownPersons,
   };
 }

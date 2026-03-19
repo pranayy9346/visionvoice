@@ -39,7 +39,7 @@ export async function analyzeFromImage({
   query,
   history,
   preferences,
-  personalObjectContext,
+  recognitionContext,
 }) {
   const model =
     process.env.GEMINI_MODEL_VISION ||
@@ -49,7 +49,7 @@ export async function analyzeFromImage({
     query,
     history,
     preferences,
-    personalObjectContext,
+    recognitionContext,
   });
 
   const raw = await callGeminiGenerate({

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,6 +74,12 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .brand-logo {
@@ -592,6 +600,51 @@ body {
   background: rgba(15, 23, 42, 0.64);
   color: #f5f9ff;
   padding: 10px 12px;
+}
+
+.settings-field input {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.64);
+  color: #f5f9ff;
+  padding: 10px 12px;
+}
+
+.settings-field input:disabled {
+  opacity: 0.8;
+}
+
+.onboarding-form {
+  margin-top: 16px;
+  max-width: 640px;
+  display: grid;
+  gap: 12px;
+}
+
+.auth-card {
+  max-width: 620px;
+}
+
+.auth-toggle {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.auth-toggle-active {
+  border-color: rgba(125, 211, 252, 0.7);
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.auth-widget-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.user-meta {
+  margin-top: 8px;
 }
 
 .settings-actions {
