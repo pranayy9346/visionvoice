@@ -2,6 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEPTH_FRESHNESS_MS = 1800;
 
+function isLikelyIOSDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const maxTouchPoints = Number(navigator.maxTouchPoints || 0);
+
+  return (
+    /iPhone|iPad|iPod/i.test(userAgent) ||
+    (/Mac/i.test(platform) && maxTouchPoints > 1)
+  );
+}
+
 function isPositiveFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
@@ -57,6 +72,9 @@ export default function useLidar() {
   const [isCheckingLidar, setIsCheckingLidar] = useState(true);
   const [isDepthSessionActive, setIsDepthSessionActive] = useState(false);
   const [lidarError, setLidarError] = useState("");
+  const [lidarSupportMessage, setLidarSupportMessage] = useState(
+    "LiDAR: Not Available",
+  );
 
   const xrSessionRef = useRef(null);
   const xrRefSpaceRef = useRef(null);
@@ -156,6 +174,16 @@ export default function useLidar() {
       if (typeof window === "undefined") {
         if (!cancelled) {
           setIsLidarAvailable(false);
+          setLidarSupportMessage("LiDAR: Not Available");
+          setIsCheckingLidar(false);
+        }
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        if (!cancelled) {
+          setIsLidarAvailable(false);
+          setLidarSupportMessage("LiDAR: Requires HTTPS secure context");
           setIsCheckingLidar(false);
         }
         return;
@@ -165,6 +193,11 @@ export default function useLidar() {
       if (!xr || typeof xr.isSessionSupported !== "function") {
         if (!cancelled) {
           setIsLidarAvailable(false);
+          setLidarSupportMessage(
+            isLikelyIOSDevice()
+              ? "LiDAR: Browser API blocked on iPhone Safari"
+              : "LiDAR: WebXR not supported in this browser",
+          );
           setIsCheckingLidar(false);
         }
         return;
@@ -174,10 +207,16 @@ export default function useLidar() {
         const supportsImmersiveAR = await xr.isSessionSupported("immersive-ar");
         if (!cancelled) {
           setIsLidarAvailable(Boolean(supportsImmersiveAR));
+          setLidarSupportMessage(
+            supportsImmersiveAR
+              ? "LiDAR: Available"
+              : "LiDAR: Immersive AR not supported on this device/browser",
+          );
         }
       } catch {
         if (!cancelled) {
           setIsLidarAvailable(false);
+          setLidarSupportMessage("LiDAR: Detection failed");
         }
       } finally {
         if (!cancelled) {
@@ -219,6 +258,7 @@ export default function useLidar() {
     isCheckingLidar,
     isDepthSessionActive,
     lidarError,
+    lidarSupportMessage,
     ensureDepthSession,
     stopDepthSession,
     getDepthMeters,

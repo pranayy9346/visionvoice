@@ -142,6 +142,7 @@ export default function usePipeline({
     isCheckingLidar,
     isDepthSessionActive,
     lidarError,
+    lidarSupportMessage,
     ensureDepthSession,
     getDepthMeters,
   } = useLidar();
@@ -225,12 +226,15 @@ export default function usePipeline({
         distanceMeters: null,
         distanceCategory,
         distanceDisplay: distanceCategory,
-        lidarStatus: "LiDAR: Not Available",
+        lidarStatus: lidarSupportMessage || "LiDAR: Not Available",
         lidarLabel: "LiDAR not available",
-        distanceIndicator: "Using AI estimation",
+        distanceIndicator:
+          lidarSupportMessage && lidarSupportMessage.includes("blocked")
+            ? "Using AI estimation (browser limitation)"
+            : "Using AI estimation",
       };
     },
-    [getDepthMeters, isLidarAvailable],
+    [getDepthMeters, isLidarAvailable, lidarSupportMessage],
   );
 
   const captureImageAsync = useCallback(async () => {
@@ -427,13 +431,15 @@ export default function usePipeline({
       distanceCategory: "",
       lidarStatus: isLidarAvailable
         ? "LiDAR: Available"
-        : "LiDAR: Not Available",
+        : lidarSupportMessage || "LiDAR: Not Available",
       lidarLabel: isLidarAvailable ? "LiDAR used" : "LiDAR not available",
       distanceIndicator: isLidarAvailable
         ? "Using LiDAR"
-        : "Using AI estimation",
+        : lidarSupportMessage && lidarSupportMessage.includes("blocked")
+          ? "Using AI estimation (browser limitation)"
+          : "Using AI estimation",
     });
-  }, [clearCapturedImage, isLidarAvailable, stopAudio]);
+  }, [clearCapturedImage, isLidarAvailable, lidarSupportMessage, stopAudio]);
 
   const errorMessage = useMemo(
     () => pipelineError || speechError || audioError || lidarError,

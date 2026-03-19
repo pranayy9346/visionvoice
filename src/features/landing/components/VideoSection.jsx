@@ -70,10 +70,40 @@ export default function VideoSection() {
             <button
               type="button"
               onClick={handleToggleMute}
-              className="absolute bottom-4 right-4 rounded-full border border-slate-100/30 bg-slate-900/75 px-4 py-2 text-sm font-medium text-slate-100 backdrop-blur"
+              className="absolute bottom-4 right-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-100/30 bg-slate-900/75 text-slate-100 backdrop-blur"
               aria-label={isMuted ? 'Turn sound on' : 'Turn sound off'}
             >
-              {isMuted ? 'Sound on' : 'Sound off'}
+              {isMuted ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                  <path d="M19 6a9 9 0 0 1 0 12" />
+                </svg>
+              )}
             </button>
           </>
         )}
